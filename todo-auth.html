@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>나의 할 일 (로그인 + Supabase)</title>
+  <style>
+    :root{
+      --bg:#0a0b0f; --surface:#13151c; --line:#23262f;
+      --text:#e7e9ee; --muted:#8b909c; --accent:#3ee7d1; --violet:#9a8bff;
+      --danger:#ff7a7a;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+      font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      display:flex; justify-content:center; padding:48px 20px;
+    }
+    .wrap{width:100%; max-width:560px}
+    .badge{
+      display:inline-block; font-size:12px; letter-spacing:.04em; color:var(--accent);
+      border:1px solid var(--line); border-radius:999px; padding:4px 12px; margin-bottom:14px;
+    }
+    h1{font-size:28px; margin:0 0 6px}
+    .sub{color:var(--muted); font-size:14px; margin:0 0 26px; line-height:1.6}
+    .card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px}
+    label{display:block; font-size:13px; color:var(--muted); margin:0 0 6px}
+    input, select{
+      width:100%; background:#0e1016; border:1px solid var(--line); color:var(--text);
+      border-radius:10px; padding:11px 13px; font-size:15px; outline:none;
+    }
+    input:focus{border-color:var(--accent)}
+    .field{margin-bottom:14px}
+    .row{display:flex; gap:8px}
+    .row input{flex:1}
+    .row select{width:auto}
+    button{
+      border:none; border-radius:10px; padding:11px 16px; font-size:15px; font-weight:700; cursor:pointer;
+      background:linear-gradient(100deg,var(--accent),var(--violet)); color:#06070a;
+    }
+    button.ghost{background:transparent; color:var(--muted); border:1px solid var(--line); font-weight:500}
+    button.full{width:100%}
+    .btns{display:flex; gap:8px; margin-top:4px}
+    .btns button{flex:1}
+    ul{list-style:none; margin:18px 0 0; padding:0; display:flex; flex-direction:column; gap:8px}
+    li{
+      display:flex; align-items:center; gap:12px; background:#0e1016;
+      border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+    }
+    li .title{flex:1; font-size:15px}
+    li.done .title{text-decoration:line-through; color:var(--muted)}
+    .pri{font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:2px 7px}
+    .chk{width:20px; height:20px; cursor:pointer; accent-color:var(--accent)}
+    .del{background:transparent; color:var(--muted); border:none; font-size:18px; padding:0 4px; font-weight:400}
+    .del:hover{color:var(--danger)}
+    .empty{color:var(--muted); font-size:14px; text-align:center; padding:18px 0}
+    .foot{color:var(--muted); font-size:12px; margin-top:16px; line-height:1.7}
+    .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px}
+    .who{font-size:13px; color:var(--muted)}
+    .msg{font-size:13px; color:var(--danger); margin-top:10px; min-height:18px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="badge">SUPABASE · 로그인 + 유저별 저장</span>
+    <h1>나의 할 일</h1>
+    <p class="sub">로그인한 사람마다 자기만의 목록을 가집니다. 데이터는 Supabase 데이터베이스에 영구 저장되고, 다른 기기에서 같은 계정으로 로그인하면 같은 목록이 보입니다.</p>
+
+    <!-- 로그인 전 -->
+    <div class="card" id="auth-view">
+      <div class="field">
+        <label for="email">이메일</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" placeholder="6자 이상" autocomplete="current-password">
+      </div>
+      <div class="btns">
+        <button id="login-btn">로그인</button>
+        <button id="signup-btn" class="ghost">회원가입</button>
+      </div>
+      <div class="msg" id="auth-msg"></div>
+    </div>
+
+    <!-- 로그인 후 -->
+    <div class="card hidden" id="todo-view">
+      <div class="topbar">
+        <span class="who" id="who"></span>
+        <button class="ghost" id="logout-btn" style="padding:6px 12px;font-size:13px">로그아웃</button>
+      </div>
+      <form id="add-form" class="row">
+        <input type="text" id="title" placeholder="할 일을 입력하세요" autocomplete="off" required>
+        <select id="priority">
+          <option>높음</option>
+          <option selected>보통</option>
+          <option>낮음</option>
+        </select>
+        <button type="submit">추가</button>
+      </form>
+      <ul id="list"></ul>
+      <div class="empty hidden" id="empty">아직 할 일이 없습니다. 위에서 추가해 보세요.</div>
+    </div>
+
+    <p class="foot">
+      Vercel 정적 페이지 + Supabase(Auth + Postgres). 백엔드 서버 코드는 0줄입니다.<br>
+      각 유저가 자기 행만 보도록 데이터베이스의 Row Level Security가 막아줍니다.
+    </p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://bcuskaewvzelwlneatcq.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_V2wMXpOxRCdKtQPImMSbUg_k5kzrgK6';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const authView = document.getElementById('auth-view');
+    const todoView = document.getElementById('todo-view');
+    const authMsg = document.getElementById('auth-msg');
+    const whoEl = document.getElementById('who');
+    const listEl = document.getElementById('list');
+    const emptyEl = document.getElementById('empty');
+
+    function show(view){
+      authView.classList.toggle('hidden', view !== 'auth');
+      todoView.classList.toggle('hidden', view !== 'todo');
+    }
+
+    // 인증 상태에 따라 화면 전환
+    async function refreshSession(){
+      const { data } = await db.auth.getSession();
+      if(data.session){
+        whoEl.textContent = data.session.user.email + ' 님';
+        show('todo');
+        loadTodos();
+      } else {
+        show('auth');
+      }
+    }
+
+    db.auth.onAuthStateChange(() => refreshSession());
+
+    // 회원가입
+    document.getElementById('signup-btn').addEventListener('click', async () => {
+      authMsg.textContent = '';
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if(!email || password.length < 6){ authMsg.textContent = '이메일과 6자 이상 비밀번호를 입력하세요.'; return; }
+      const { error } = await db.auth.signUp({ email, password });
+      if(error){ authMsg.textContent = '회원가입 실패: ' + error.message; return; }
+      authMsg.style.color = '#3ee7d1';
+      authMsg.textContent = '가입 완료. 로그인되었습니다.';
+    });
+
+    // 로그인
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      authMsg.style.color = '';
+      authMsg.textContent = '';
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { error } = await db.auth.signInWithPassword({ email, password });
+      if(error){ authMsg.textContent = '로그인 실패: ' + error.message; return; }
+    });
+
+    // 로그아웃
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await db.auth.signOut();
+    });
+
+    // 내 할 일 불러오기 (RLS가 자동으로 내 행만 반환)
+    async function loadTodos(){
+      const { data, error } = await db.from('todos').select('*').order('created_at', { ascending: true });
+      if(error){ console.error(error); return; }
+      render(data);
+    }
+
+    function render(todos){
+      listEl.innerHTML = '';
+      emptyEl.classList.toggle('hidden', todos.length > 0);
+      for(const t of todos){
+        const li = document.createElement('li');
+        if(t.done) li.classList.add('done');
+        li.innerHTML =
+          '<input type="checkbox" class="chk"' + (t.done ? ' checked' : '') + '>' +
+          '<span class="title"></span>' +
+          '<span class="pri"></span>' +
+          '<button class="del" title="삭제">&times;</button>';
+        li.querySelector('.title').textContent = t.title;
+        li.querySelector('.pri').textContent = t.priority;
+        li.querySelector('.chk').addEventListener('change', () => toggle(t));
+        li.querySelector('.del').addEventListener('click', () => remove(t.id));
+        listEl.appendChild(li);
+      }
+    }
+
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const titleEl = document.getElementById('title');
+      const title = titleEl.value.trim();
+      if(!title) return;
+      const priority = document.getElementById('priority').value;
+      const { error } = await db.from('todos').insert({ title, priority });
+      if(error){ console.error(error); alert('추가 실패: ' + error.message); return; }
+      titleEl.value = '';
+      titleEl.focus();
+      loadTodos();
+    });
+
+    async function toggle(t){
+      await db.from('todos').update({ done: !t.done }).eq('id', t.id);
+      loadTodos();
+    }
+
+    async function remove(id){
+      await db.from('todos').delete().eq('id', id);
+      loadTodos();
+    }
+
+    refreshSession();
+  </script>
+</body>
+</html>
