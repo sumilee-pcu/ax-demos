@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibe Build · 오전 미션</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b0f; --surface:#13151c; --surface-2:#171a22;
+    --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.055);
+    --ink:#f5f6f8; --ink-2:#c2c7d0; --muted:#7c828f;
+    --cyan:#3ee7d1; --violet:#9a8bff;
+    --grad:linear-gradient(100deg,#3ee7d1 0%,#7c8cff 52%,#b08cff 100%);
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  body{font-family:"Pretendard Variable",Pretendard,system-ui,sans-serif;background:var(--bg);color:var(--ink);
+       line-height:1.6;letter-spacing:-.011em;position:relative;overflow-x:hidden;}
+  body::before{content:"";position:fixed;top:-260px;left:-160px;width:760px;height:760px;pointer-events:none;
+    background:radial-gradient(circle,rgba(62,231,209,.16),rgba(124,140,255,.10) 38%,transparent 66%);filter:blur(8px);z-index:0;}
+  body::after{content:"";position:fixed;top:120px;right:-220px;width:680px;height:680px;pointer-events:none;
+    background:radial-gradient(circle,rgba(176,140,255,.14),transparent 62%);filter:blur(8px);z-index:0;}
+  .bgfx{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.4px),
+      repeating-radial-gradient(circle at 84% -4%, rgba(124,140,255,.06) 0 1px, transparent 1px 116px);
+    background-size:26px 26px, 100% 100%;
+    -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.95),rgba(0,0,0,.35) 48%,transparent 78%);
+    mask-image:linear-gradient(180deg,rgba(0,0,0,.95),rgba(0,0,0,.35) 48%,transparent 78%);}
+  .wrap{max-width:1080px;margin:0 auto;padding:90px 40px 80px;position:relative;z-index:1;}
+
+  .brand{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:13px;color:var(--ink-2);margin-bottom:80px;}
+  .brand .dot{width:9px;height:9px;border-radius:2px;background:var(--grad);}
+  .brand .sub{color:var(--muted);}
+
+  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;color:var(--cyan);
+           display:inline-flex;align-items:center;gap:8px;margin-bottom:24px;}
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--cyan);display:inline-block;opacity:.7;}
+  h1{font-size:58px;line-height:1.05;letter-spacing:-.04em;font-weight:800;max-width:15ch;}
+  h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .lede{margin-top:24px;font-size:18px;line-height:1.62;color:var(--ink-2);max-width:52ch;font-weight:400;}
+  .rule{height:1px;background:var(--line);margin:56px 0 0;}
+
+  .seclabel{display:flex;align-items:baseline;gap:14px;font-family:var(--mono);font-size:12px;
+            letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:44px 0 22px;}
+  .seclabel .ln{flex:1;height:1px;background:var(--line-soft);}
+
+  a.card{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:16px;
+         background:var(--surface);transition:border-color .22s ease, box-shadow .22s ease, transform .22s ease, background .22s ease;}
+  a.card:hover{border-color:rgba(124,140,255,.5);background:var(--surface-2);
+               box-shadow:0 20px 60px -28px rgba(124,140,255,.55);transform:translateY(-2px);}
+  .feature{padding:34px 36px;display:flex;align-items:center;gap:32px;}
+  .feature .ic{flex:none;width:56px;height:56px;border-radius:14px;
+               background:linear-gradient(150deg,rgba(62,231,209,.18),rgba(124,140,255,.16));
+               border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--cyan);}
+  .feature .body{flex:1;}
+  .num{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .feature h2{font-size:23px;letter-spacing:-.02em;margin:8px 0 7px;font-weight:700;color:var(--ink);}
+  .feature p{color:var(--ink-2);font-size:15px;max-width:60ch;}
+  .arrow{flex:none;color:var(--muted);transition:transform .22s ease, color .22s ease;}
+  a.card:hover .arrow{transform:translateX(4px);color:var(--cyan);}
+  .tag{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+       padding:5px 11px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);}
+  .tag.solid{background:var(--grad);color:#0a0b0f;border-color:transparent;font-weight:600;}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  .mini{padding:26px 24px 22px;display:flex;flex-direction:column;min-height:192px;}
+  .mini .ic{width:42px;height:42px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);
+            display:flex;align-items:center;justify-content:center;color:var(--ink);margin-bottom:20px;}
+  .mini .top{display:flex;justify-content:space-between;align-items:center;}
+  .mini h3{font-size:17px;letter-spacing:-.015em;margin:16px 0 6px;font-weight:600;color:var(--ink);}
+  .mini p{color:var(--muted);font-size:13.5px;line-height:1.55;flex:1;}
+  .mini .go{font-family:var(--mono);font-size:12px;color:var(--cyan);margin-top:14px;}
+
+  footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--line-soft);
+         display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;color:var(--muted);}
+  @media(max-width:760px){.wrap{padding:56px 22px;}h1{font-size:40px;}.grid{grid-template-columns:1fr;}.feature{flex-wrap:wrap;}}
+</style>
+</head>
+<body>
+<div class="bgfx"></div>
+<div class="wrap">
+
+  <div class="brand"><span class="dot"></span>vibe&nbsp;build<span class="sub">&nbsp;/ morning</span></div>
+
+  <div class="eyebrow">$ vibe build mini-app</div>
+  <h1>말 한마디로,<br><span class="grad">손에 잡히는 앱</span></h1>
+  <p class="lede">코드를 직접 쓰지 않습니다. 무엇을 원하는지 설명하면, 설치 없이 브라우저에서 바로 도는 도구가 됩니다. 오늘 오전, 다섯 번의 작은 성공을 만듭니다.</p>
+
+  <div class="rule"></div>
+
+  <div class="seclabel">함께 만드는 시연<span class="ln"></span>01</div>
+
+  <a class="card feature" href="pdf.html">
+    <div class="ic">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6M9 17h4"/></svg>
+    </div>
+    <div class="body">
+      <span class="num">01</span>
+      <h2>PDF 에디터</h2>
+      <p>여러 PDF를 불러와 페이지를 삭제하고 회전하고 순서를 바꿔, 하나의 문서로 다시 묶어 내려받습니다.</p>
+    </div>
+    <span class="tag solid">시연 공통</span>
+    <span class="arrow"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+  </a>
+
+  <div class="seclabel">골라서 따라 만드는 미션<span class="ln"></span>03</div>
+
+  <div class="grid">
+    <a class="card mini" href="todo.html">
+      <div class="top">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <span class="tag">선택</span>
+      </div>
+      <h3>투두리스트</h3>
+      <p>할 일을 추가하고 체크하고 저장하는, 가장 쉬운 입문 미션.</p>
+      <span class="go">02 &nbsp;열기 →</span>
+    </a>
+
+    <a class="card mini" href="biblio.html">
+      <div class="top">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg></div>
+        <span class="tag">선택</span>
+      </div>
+      <h3>서지정보 관리</h3>
+      <p>책 정보를 모아 참고문헌 목록으로 관리하고 인용 형식으로 복사.</p>
+      <span class="go">03 &nbsp;열기 →</span>
+    </a>
+
+    <a class="card mini" href="folder.html">
+      <div class="top">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></div>
+        <span class="tag">선택</span>
+      </div>
+      <h3>폴더 자동 정리</h3>
+      <p>폴더를 골라 파일을 확장자별로 분류해 정리. Edge 또는 Chrome.</p>
+      <span class="go">04 &nbsp;열기 →</span>
+    </a>
+  </div>
+
+  <footer>
+    <span>AI 바이브 코딩 · 실전 워크숍</span>
+    <span>prompt → app</span>
+  </footer>
+</div>
+</body>
+</html>

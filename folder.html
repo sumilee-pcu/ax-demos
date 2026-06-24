@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>폴더 자동 정리 · Vibe Build</title>
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0b0f;--surface:#13151c;--surface-2:#171a22;--line:rgba(255,255,255,.09);--line-soft:rgba(255,255,255,.055);
+        --ink:#f5f6f8;--ink-2:#c2c7d0;--muted:#7c828f;--cyan:#3ee7d1;--violet:#9a8bff;
+        --grad:linear-gradient(100deg,#3ee7d1 0%,#7c8cff 52%,#b08cff 100%);--mono:"JetBrains Mono",ui-monospace,monospace;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Pretendard Variable",Pretendard,system-ui,sans-serif;background:var(--bg);color:var(--ink);
+       line-height:1.6;letter-spacing:-.011em;-webkit-font-smoothing:antialiased;position:relative;}
+  body::before{content:"";position:fixed;top:-220px;left:-140px;width:620px;height:620px;pointer-events:none;
+    background:radial-gradient(circle,rgba(62,231,209,.12),rgba(124,140,255,.08) 40%,transparent 66%);z-index:0;}
+  .bgfx{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.045) 1px,transparent 1.3px);background-size:26px 26px;
+    -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.8),transparent 58%);
+    mask-image:linear-gradient(180deg,rgba(0,0,0,.8),transparent 58%);}
+  .wrap{max-width:680px;margin:0 auto;padding:56px 28px 80px;position:relative;z-index:1;}
+  a.back{font-family:var(--mono);font-size:12px;color:var(--muted);text-decoration:none;}
+  a.back:hover{color:var(--ink);}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--cyan);margin:26px 0 14px;
+           display:flex;align-items:center;gap:8px;}
+  .eyebrow::before{content:"";width:18px;height:1px;background:var(--cyan);opacity:.7;}
+  h1{font-size:30px;letter-spacing:-.03em;font-weight:800;}
+  .sub{margin-top:10px;color:var(--ink-2);font-size:15px;}
+  .notice{margin:22px 0 20px;border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:10px;
+          padding:13px 16px;font-size:13.5px;color:var(--ink-2);background:var(--surface);}
+  .btn{font-family:inherit;border:none;background:var(--grad);color:#0a0b0f;padding:12px 18px;border-radius:10px;
+       font-size:14px;font-weight:700;cursor:pointer;letter-spacing:-.01em;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn.green{background:#eef0f5;color:#0a0b0f;}
+  .btn.green:hover{background:#fff;}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px;}
+  .pick{color:var(--muted);font-size:13px;font-family:var(--mono);}
+  h3{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin:24px 2px 12px;}
+  table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);}
+  th,td{text-align:left;padding:11px 14px;font-size:13.5px;border-bottom:1px solid var(--line-soft);color:var(--ink-2);}
+  th{background:var(--surface-2);color:var(--muted);font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.03em;}
+  tr:last-child td{border-bottom:none;}
+  .tag{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(124,140,255,.16);color:#aeb6ff;}
+  .summary{margin-top:16px;border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:10px;
+           padding:13px 16px;font-size:14px;color:var(--ink);background:var(--surface);}
+</style>
+</head>
+<body>
+<div class="bgfx"></div>
+<div class="wrap">
+  <a class="back" href="index.html">← 미션 목록</a>
+  <div class="eyebrow">$ build folder-tidy</div>
+  <h1>폴더 자동 정리</h1>
+  <p class="sub">폴더를 고르면 안의 파일을 확장자별 하위 폴더로 분류해 정리합니다.</p>
+
+  <div class="notice">이 도구는 Edge 또는 Chrome에서만 동작합니다. 정리는 미리보기로 확인한 뒤 실행 버튼을 눌러야 진행됩니다.</div>
+
+  <div class="row">
+    <button class="btn" id="pick">폴더 선택</button>
+    <span class="pick" id="pickName">선택된 폴더 없음</span>
+  </div>
+
+  <div id="previewWrap" style="display:none;">
+    <h3>정리 미리보기 (아직 이동하지 않았습니다)</h3>
+    <table>
+      <thead><tr><th>파일</th><th>이동할 폴더</th></tr></thead>
+      <tbody id="previewBody"></tbody>
+    </table>
+    <div class="row" style="margin-top:16px;">
+      <button class="btn green" id="run">이대로 정리 실행</button>
+    </div>
+  </div>
+
+  <div class="summary" id="summary" style="display:none;"></div>
+</div>
+
+<script>
+const CATEGORIES = {
+  "이미지": ["jpg","jpeg","png","gif","webp","bmp","heic","svg"],
+  "문서": ["pdf","doc","docx","hwp","hwpx","txt","ppt","pptx","xls","xlsx","csv"],
+  "압축": ["zip","rar","7z","tar","gz"],
+  "영상음악": ["mp4","mov","avi","mkv","mp3","wav","m4a"]
+};
+function categoryOf(name){
+  const ext = name.split(".").pop().toLowerCase();
+  for(const [cat, list] of Object.entries(CATEGORIES)) if(list.includes(ext)) return cat;
+  return "기타";
+}
+
+let dirHandle = null;
+let plan = [];
+const $ = (id) => document.getElementById(id);
+
+$("pick").onclick = async () => {
+  if(!window.showDirectoryPicker){
+    alert("이 브라우저는 폴더 접근을 지원하지 않습니다. Edge 또는 Chrome을 사용하세요.");
+    return;
+  }
+  try { dirHandle = await window.showDirectoryPicker(); }
+  catch { return; }
+  $("pickName").textContent = dirHandle.name + " 폴더";
+  $("summary").style.display = "none";
+  await buildPlan();
+};
+
+async function buildPlan(){
+  plan = [];
+  for await (const entry of dirHandle.values()){
+    if(entry.kind === "file" && !entry.name.startsWith(".")){
+      plan.push({ name: entry.name, category: categoryOf(entry.name), handle: entry });
+    }
+  }
+  renderPreview();
+}
+
+function renderPreview(){
+  const body = $("previewBody");
+  body.innerHTML = "";
+  if(!plan.length){
+    $("previewWrap").style.display = "none";
+    $("summary").style.display = "block";
+    $("summary").textContent = "정리할 파일이 없습니다.";
+    return;
+  }
+  plan.forEach(p => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td></td><td><span class="tag">${p.category}</span></td>`;
+    tr.querySelector("td").textContent = p.name;
+    body.appendChild(tr);
+  });
+  $("previewWrap").style.display = "block";
+}
+
+$("run").onclick = async () => {
+  let moved = 0;
+  const perCat = {};
+  for(const p of plan){
+    const sub = await dirHandle.getDirectoryHandle(p.category, { create:true });
+    const target = await uniqueName(sub, p.name);
+    const file = await p.handle.getFile();
+    const writable = await (await sub.getFileHandle(target, { create:true })).createWritable();
+    await writable.write(await file.arrayBuffer());
+    await writable.close();
+    await dirHandle.removeEntry(p.name);
+    moved++; perCat[p.category] = (perCat[p.category]||0)+1;
+  }
+  $("previewWrap").style.display = "none";
+  const detail = Object.entries(perCat).map(([c,n])=>`${c} ${n}개`).join(", ");
+  $("summary").style.display = "block";
+  $("summary").textContent = `정리 완료. 총 ${moved}개 파일을 옮겼습니다. (${detail})`;
+};
+
+async function uniqueName(dir, name){
+  let exists = false;
+  try { await dir.getFileHandle(name); exists = true; } catch { exists = false; }
+  if(!exists) return name;
+  const dot = name.lastIndexOf(".");
+  const base = dot>0 ? name.slice(0,dot) : name;
+  const ext = dot>0 ? name.slice(dot) : "";
+  let i = 1, candidate;
+  do { candidate = `${base}_${i}${ext}`; i++;
+    try { await dir.getFileHandle(candidate); } catch { break; }
+  } while(true);
+  return candidate;
+}
+
+// 데모 모드: ?demo=1 이면 가상의 파일 목록으로 미리보기를 채워 화면 캡처용으로 보여준다
+if(new URLSearchParams(location.search).has("demo")){
+  $("pickName").textContent = "다운로드 폴더";
+  const names = ["발표자료_v3.pptx","워크숍_사진01.jpg","워크숍_사진02.jpg","예산안.xlsx",
+                 "참가자명단.pdf","로고.png","녹음파일.m4a","자료모음.zip"];
+  plan = names.map(n => ({ name:n, category:categoryOf(n), handle:null }));
+  renderPreview();
+  $("run").style.display = "none";
+}
+</script>
+</body>
+</html>

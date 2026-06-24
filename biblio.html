@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서지정보 관리 · Vibe Build</title>
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0b0f;--surface:#13151c;--surface-2:#171a22;--line:rgba(255,255,255,.09);--line-soft:rgba(255,255,255,.055);
+        --ink:#f5f6f8;--ink-2:#c2c7d0;--muted:#7c828f;--cyan:#3ee7d1;--violet:#9a8bff;
+        --grad:linear-gradient(100deg,#3ee7d1 0%,#7c8cff 52%,#b08cff 100%);--mono:"JetBrains Mono",ui-monospace,monospace;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Pretendard Variable",Pretendard,system-ui,sans-serif;background:var(--bg);color:var(--ink);
+       line-height:1.6;letter-spacing:-.011em;-webkit-font-smoothing:antialiased;position:relative;}
+  body::before{content:"";position:fixed;top:-220px;left:-140px;width:620px;height:620px;pointer-events:none;
+    background:radial-gradient(circle,rgba(62,231,209,.12),rgba(124,140,255,.08) 40%,transparent 66%);z-index:0;}
+  .bgfx{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.045) 1px,transparent 1.3px);background-size:26px 26px;
+    -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.8),transparent 58%);
+    mask-image:linear-gradient(180deg,rgba(0,0,0,.8),transparent 58%);}
+  .wrap{max-width:680px;margin:0 auto;padding:56px 28px 80px;position:relative;z-index:1;}
+  a.back{font-family:var(--mono);font-size:12px;color:var(--muted);text-decoration:none;}
+  a.back:hover{color:var(--ink);}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--cyan);margin:26px 0 14px;
+           display:flex;align-items:center;gap:8px;}
+  .eyebrow::before{content:"";width:18px;height:1px;background:var(--cyan);opacity:.7;}
+  h1{font-size:30px;letter-spacing:-.03em;font-weight:800;}
+  .sub{margin-top:10px;color:var(--ink-2);font-size:15px;}
+  .form{border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;grid-template-columns:1fr 1fr;
+        gap:10px;margin:28px 0 18px;background:var(--surface);}
+  .form .full{grid-column:1 / -1;}
+  input{font-family:inherit;font-size:14px;padding:12px 13px;border:1px solid var(--line);border-radius:10px;
+        width:100%;color:var(--ink);background:var(--surface-2);}
+  input::placeholder{color:var(--muted);}
+  input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(62,231,209,.16);}
+  .btn{font-family:inherit;border:none;background:var(--grad);color:#0a0b0f;padding:11px 18px;border-radius:10px;
+       font-size:14px;font-weight:700;cursor:pointer;letter-spacing:-.01em;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn.ghost{background:transparent;color:var(--cyan);border:1px solid rgba(62,231,209,.5);}
+  .btn.ghost:hover{background:rgba(62,231,209,.1);filter:none;}
+  .bar{display:flex;justify-content:space-between;align-items:center;margin:6px 2px 16px;}
+  .bar .cnt{color:var(--muted);font-size:13px;}
+  .bar .cnt b{color:var(--ink);font-weight:600;}
+  ul{list-style:none;}
+  li{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:10px;display:flex;
+     align-items:flex-start;gap:12px;background:var(--surface);transition:border-color .15s;}
+  li:hover{border-color:rgba(124,140,255,.4);}
+  li .info{flex:1;}
+  li .bk{font-weight:700;font-size:16px;letter-spacing:-.015em;color:var(--ink);}
+  li .meta{color:var(--muted);font-size:13px;margin-top:3px;}
+  li .cite{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-top:9px;background:var(--surface-2);
+           border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;line-height:1.5;}
+  .del{background:none;border:none;color:#565b66;font-size:16px;cursor:pointer;line-height:1;}
+  .del:hover{color:#ff6b6b;}
+  .empty{text-align:center;color:var(--muted);padding:40px 0;font-size:14px;}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--surface-2);color:var(--ink);
+         border:1px solid var(--line);padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;z-index:5;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="bgfx"></div>
+<div class="wrap">
+  <a class="back" href="index.html">← 미션 목록</a>
+  <div class="eyebrow">$ build bibliography</div>
+  <h1>서지정보 관리</h1>
+  <p class="sub">책 정보를 모아 참고문헌 목록으로 관리합니다. 새로고침해도 남아 있습니다.</p>
+
+  <div class="form">
+    <input id="f-title" class="full" type="text" placeholder="책 제목">
+    <input id="f-author" type="text" placeholder="저자">
+    <input id="f-pub" type="text" placeholder="출판사">
+    <input id="f-year" type="text" placeholder="출판연도 (예: 2026)">
+    <div class="full" style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" id="add">목록에 추가</button>
+    </div>
+  </div>
+
+  <div class="bar">
+    <span class="cnt">총 <b id="count">0</b>권</span>
+    <button class="btn ghost" id="copyAll">참고문헌 형식으로 전체 복사</button>
+  </div>
+
+  <ul id="list"></ul>
+  <div class="empty" id="empty">아직 등록된 책이 없습니다. 위에서 추가해 보세요.</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = "workshop_biblio";
+const DEMO = new URLSearchParams(location.search).has("demo");
+const SAMPLE = [
+  { id:1, title:"바이브 코딩 입문", author:"홍길동", pub:"한빛미디어", year:"2025" },
+  { id:2, title:"클로드로 만드는 업무 자동화", author:"김실무", pub:"위키북스", year:"2026" },
+  { id:3, title:"비개발자를 위한 AI 앱 빌드", author:"이수미", pub:"인사이트", year:"2026" },
+];
+let books = DEMO ? SAMPLE.slice() : JSON.parse(localStorage.getItem(KEY) || "[]");
+let seq = books.reduce((m,b)=>Math.max(m,b.id),0);
+const $ = (id) => document.getElementById(id);
+function save(){ if(DEMO) return; localStorage.setItem(KEY, JSON.stringify(books)); }
+
+function citation(b){
+  const parts = [];
+  if(b.author) parts.push(b.author);
+  parts.push(`(${b.year || "연도 미상"})`);
+  let s = parts.join(" ") + ". " + b.title + ".";
+  if(b.pub) s += " " + b.pub + ".";
+  return s;
+}
+
+function add(){
+  const title = $("f-title").value.trim();
+  if(!title){ toast("책 제목을 입력하세요"); return; }
+  books.push({
+    id:++seq, title,
+    author:$("f-author").value.trim(),
+    pub:$("f-pub").value.trim(),
+    year:$("f-year").value.trim()
+  });
+  ["f-title","f-author","f-pub","f-year"].forEach(id=>$(id).value="");
+  save(); render(); $("f-title").focus();
+}
+$("add").onclick = add;
+
+$("copyAll").onclick = async () => {
+  if(!books.length){ toast("복사할 책이 없습니다"); return; }
+  const text = books.map((b,i)=>`${i+1}. ${citation(b)}`).join("\n");
+  try { await navigator.clipboard.writeText(text); toast("참고문헌 목록을 복사했습니다"); }
+  catch { toast("복사 권한이 없어 실패했습니다"); }
+};
+
+let toastTimer;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 1600);
+}
+
+function render(){
+  const list = $("list");
+  list.innerHTML = "";
+  $("empty").style.display = books.length ? "none" : "block";
+  books.forEach(b => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <div class="info">
+        <div class="bk"></div>
+        <div class="meta"></div>
+        <div class="cite"></div>
+      </div>
+      <button class="del" title="삭제">✕</button>`;
+    li.querySelector(".bk").textContent = b.title;
+    li.querySelector(".meta").textContent = [b.author, b.pub, b.year].filter(Boolean).join(" · ") || "추가 정보 없음";
+    li.querySelector(".cite").textContent = citation(b);
+    li.querySelector(".del").onclick = () => { books = books.filter(x=>x.id!==b.id); save(); render(); };
+    list.appendChild(li);
+  });
+  $("count").textContent = books.length;
+}
+render();
+</script>
+</body>
+</html>

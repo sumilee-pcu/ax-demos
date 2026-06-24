@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오전 실습 앱 목록</title>
+<style>
+  body { font-family:"Malgun Gothic","Segoe UI",sans-serif; background:#f4f5f7; color:#333; margin:0; }
+  .container { max-width:900px; margin:0 auto; padding:48px 24px; }
+  h1 { text-align:center; font-size:28px; color:#222; margin:0 0 8px; }
+  .subtitle { text-align:center; color:#777; font-size:15px; margin:0 0 36px; }
+  .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+  .card { background:#fff; border:1px solid #ddd; border-radius:8px; padding:24px; text-align:center; text-decoration:none; color:#333; }
+  .card:hover { box-shadow:0 2px 8px rgba(0,0,0,.1); }
+  .card .emoji { font-size:40px; }
+  .card h3 { font-size:18px; margin:12px 0 8px; color:#222; }
+  .card p { font-size:14px; color:#777; margin:0 0 16px; line-height:1.5; }
+  .card .btn { display:inline-block; background:#2f6df6; color:#fff; padding:8px 18px; border-radius:5px; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>1부 실습 앱 목록</h1>
+  <p class="subtitle">아래 앱 중 하나를 골라 만들어 보세요.</p>
+  <div class="grid">
+    <a class="card" href="pdf.html">
+      <div class="emoji">📄</div>
+      <h3>PDF 에디터</h3>
+      <p>여러 PDF를 합치고 페이지를 정리해 저장합니다.</p>
+      <span class="btn">시작하기</span>
+    </a>
+    <a class="card" href="todo.html">
+      <div class="emoji">✅</div>
+      <h3>투두리스트</h3>
+      <p>할 일을 추가하고 체크하고 저장합니다.</p>
+      <span class="btn">시작하기</span>
+    </a>
+    <a class="card" href="biblio.html">
+      <div class="emoji">📚</div>
+      <h3>서지정보 관리</h3>
+      <p>책 정보를 모아 참고문헌으로 관리합니다.</p>
+      <span class="btn">시작하기</span>
+    </a>
+    <a class="card" href="folder.html">
+      <div class="emoji">🗂️</div>
+      <h3>폴더 자동 정리</h3>
+      <p>파일을 확장자별로 분류해 정리합니다.</p>
+      <span class="btn">시작하기</span>
+    </a>
+  </div>
+</div>
+</body>
+</html>
