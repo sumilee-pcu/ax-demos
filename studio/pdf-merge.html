@@ -15,27 +15,28 @@
   <aside class="sidebar"></aside>
   <main class="main">
 
-    <div class="crumb">PDF · 붙임파일 하나로</div>
-    <h1>PDF 병합</h1>
-    <p class="desc">여러 PDF를 불러와 페이지를 삭제하고 회전하고 순서를 바꾼 뒤 하나로 합쳐 내려받습니다.
+    <div class="crumb" data-i18n="PDF · Combine attachments">PDF · 붙임파일 하나로</div>
+    <h1 data-i18n="Merge PDF">PDF 병합</h1>
+    <p class="desc" data-i18n="Load multiple PDFs, delete, rotate and reorder pages, then merge into one file. Everything stays in your browser.">여러 PDF를 불러와 페이지를 삭제하고 회전하고 순서를 바꾼 뒤 하나로 합쳐 내려받습니다.
       모든 처리는 브라우저 안에서만 이루어지며 서버로 전송되지 않습니다.</p>
 
     <div class="toolbar">
-      <button class="btn" id="addBtn">PDF 불러오기</button>
+      <button class="btn" id="addBtn" data-i18n="Load PDFs">PDF 불러오기</button>
       <input type="file" id="fileInput" accept="application/pdf" multiple hidden>
-      <button class="btn" id="clearBtn" disabled>전체 비우기</button>
+      <button class="btn" id="clearBtn" disabled data-i18n="Clear all">전체 비우기</button>
       <span style="flex:1"></span>
       <span class="statusline" style="padding:0">페이지 <span class="count" id="pageCount">0</span>개</span>
-      <button class="btn primary" id="saveBtn" disabled>PDF로 저장</button>
+      <button class="btn primary" id="saveBtn" disabled data-i18n="Save PDF">PDF로 저장</button>
     </div>
 
-    <div class="dropzone" id="drop">여기로 PDF 파일을 끌어다 놓거나 위의 PDF 불러오기 버튼을 누르세요</div>
+    <div class="dropzone" id="drop" data-i18n="Drop PDF files here or use the button above">여기로 PDF 파일을 끌어다 놓거나 위의 PDF 불러오기 버튼을 누르세요</div>
     <div class="thumb-grid" id="grid"></div>
     <div class="statusline" id="hint"></div>
 
   </main>
 </div>
 
+<script src="assets/i18n.js"></script>
 <script src="assets/shell.js"></script>
 <script src="assets/stats.js"></script>
 <script>
@@ -122,7 +123,7 @@ async function drawThumb(pg, container) {
     const vp = page.getViewport({ scale, rotation: pg.rotation });
     const canvas = document.createElement("canvas");
     canvas.width = vp.width; canvas.height = vp.height;
-    // intent:"print" — 기본(display) 렌더는 rAF로 진행을 조절해 백그라운드 탭에서 멈춘다
+    // intent:"print": 기본(display) 렌더는 rAF로 진행을 조절해 백그라운드 탭에서 멈춘다
     await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp, intent: "print" }).promise;
     container.innerHTML = ""; container.appendChild(canvas);
   } catch (err) {

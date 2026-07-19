@@ -44,7 +44,7 @@
     return c;
   }
 
-  /* 반환: { blob, actualType, fallback } — 요청 형식을 브라우저가 못 만들면 fallback=true */
+  /* 반환: { blob, actualType, fallback }: 요청 형식을 브라우저가 못 만들면 fallback=true */
   function exportBlob(canvas, type, quality) {
     if (type === "image/jpeg") canvas = flattenWhite(canvas);
     return new Promise(function (resolve, reject) {

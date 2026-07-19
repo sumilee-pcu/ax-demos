@@ -8,7 +8,7 @@
     return { doc, bytes, name: file.name, pageCount: doc.numPages };
   }
 
-  /* intent:"print" — 기본(display) 렌더는 rAF로 진행을 조절해 백그라운드 탭에서 멈춘다 */
+  /* intent:"print": 기본(display) 렌더는 rAF로 진행을 조절해 백그라운드 탭에서 멈춘다 */
   async function renderPage(doc, pageNo, opts) {
     opts = opts || {};
     const page = await doc.getPage(pageNo);

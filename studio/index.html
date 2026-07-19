@@ -7,6 +7,12 @@
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/studio.css">
+<style>
+  .route-note{margin:14px 0 4px;font-size:13.5px;color:var(--ink-2);}
+  .route-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px;}
+  .route-grid .toolcard{min-height:auto;}
+  @media(max-width:920px){.route-grid{grid-template-columns:1fr;}}
+</style>
 </head>
 <body>
 <div class="studio">
@@ -15,32 +21,37 @@
 
     <div class="hero">
       <div class="crumb">$ naepc studio</div>
-      <h1>업로드 없이,<br><span class="grad">내 PC에서 딱 끝나는</span> 파일 작업</h1>
-      <p class="lede">PDF 병합·분할, 이미지 편집, 문서 변환을 브라우저 안에서 처리합니다.
+      <h1 data-i18n="File work that ends on your PC, no upload">업로드 없이,<br><span class="grad">내 PC에서 딱 끝나는</span> 파일 작업</h1>
+      <p class="lede" data-i18n="Merge and split PDFs, edit images and convert documents, all inside your browser. Files are never sent to a server; nothing to install, nothing to approve.">PDF 병합·분할, 이미지 편집, 문서 변환을 브라우저 안에서 처리합니다.
         파일은 서버로 전송되지 않으며, 설치도 결재도 필요 없습니다.</p>
       <div class="badges">
-        <span class="badge"><b>무유출</b> 외부 전송 없음</span>
-        <span class="badge"><b>무설치</b> 브라우저만 열면 됨</span>
-        <span class="badge"><b>무결재</b> 설치 신청 불필요</span>
-        <span class="badge"><b>무료</b> 구독 없음</span>
+        <span class="badge"><b>무유출</b> <span data-i18n="nothing leaves this tab">외부 전송 없음</span></span>
+        <span class="badge"><b>무설치</b> <span data-i18n="browser only">브라우저만 열면 됨</span></span>
+        <span class="badge"><b>무결재</b> <span data-i18n="no install request">설치 신청 불필요</span></span>
+        <span class="badge"><b>무료</b> <span data-i18n="no subscription">구독 없음</span></span>
       </div>
     </div>
 
+    <div class="dropzone" id="drop" data-i18n="Drop any files here and I will point you to the right tool">아무 파일이나 여기에 끌어다 놓으면 알맞은 도구를 안내합니다</div>
+    <div id="routePanel"></div>
+
     <div class="statrow">
-      <div class="stat"><div class="k">처리한 파일</div><div class="v"><span id="stFiles">0</span><em>건</em></div></div>
-      <div class="stat"><div class="k">절약한 용량</div><div class="v"><span id="stSaved">0</span><em>KB</em></div></div>
-      <div class="stat"><div class="k">사용한 도구</div><div class="v"><span id="stTools">0</span><em>종</em></div></div>
-      <div class="stat"><div class="k">작업 흐름</div><div class="flow" id="stFlow">아직 없음</div></div>
+      <div class="stat"><div class="k" data-i18n="Files processed">처리한 파일</div><div class="v"><span id="stFiles">0</span><em data-i18n="items">건</em></div></div>
+      <div class="stat"><div class="k" data-i18n="Space saved">절약한 용량</div><div class="v"><span id="stSaved">0</span><em>KB</em></div></div>
+      <div class="stat"><div class="k" data-i18n="Tools used">사용한 도구</div><div class="v"><span id="stTools">0</span><em data-i18n="kinds">종</em></div></div>
+      <div class="stat"><div class="k" data-i18n="Work flow">작업 흐름</div><div class="flow" id="stFlow" data-i18n="nothing yet">아직 없음</div></div>
     </div>
-    <p class="subnote">이 탭에서만 집계 · 탭을 닫으면 초기화</p>
+    <p class="subnote" data-i18n="Counted in this tab only, resets when the tab closes">이 탭에서만 집계 · 탭을 닫으면 초기화</p>
 
     <div id="toolGrid"></div>
 
   </main>
 </div>
 
+<script src="assets/i18n.js"></script>
 <script src="assets/shell.js"></script>
 <script src="assets/stats.js"></script>
+<script src="assets/file-router.js"></script>
 <script>
 Shell.init({ home: true });
 
@@ -50,7 +61,11 @@ Shell.init({ home: true });
   document.getElementById("stFiles").textContent = s.files;
   document.getElementById("stSaved").textContent = s.savedKB;
   document.getElementById("stTools").textContent = s.toolCount;
-  if (s.flow.length) document.getElementById("stFlow").textContent = s.flow.join(" → ");
+  if (s.flow.length) {
+    const el = document.getElementById("stFlow");
+    el.removeAttribute("data-i18n");
+    el.textContent = s.flow.join(" → ");
+  }
 })();
 
 /* 도구 그리드 */
@@ -60,6 +75,7 @@ Shell.init({ home: true });
     const label = document.createElement("div");
     label.className = "crumb";
     label.style.marginTop = "34px";
+    label.setAttribute("data-i18n", g.en);
     label.textContent = g.cat;
     root.appendChild(label);
 
@@ -67,22 +83,23 @@ Shell.init({ home: true });
     grid.className = "tool-grid";
     g.items.forEach(function (t) {
       let el;
-      if (t.ready) {
-        el = document.createElement("a");
-        el.href = t.href;
-      } else {
-        el = document.createElement("div");
-      }
+      if (t.ready) { el = document.createElement("a"); el.href = t.href; }
+      else el = document.createElement("div");
       el.className = "toolcard";
       el.innerHTML =
-        '<div class="name">' + t.name + (t.ready ? "" : '<span class="soon">준비 중</span>') + "</div>" +
-        '<div class="gov">' + t.gov + "</div>" +
-        '<div class="sum">' + t.sum + "</div>";
+        '<div class="name"><span data-i18n="' + t.en + '">' + t.name + "</span>" +
+          (t.ready ? "" : '<span class="soon" data-i18n="soon">준비 중</span>') + "</div>" +
+        '<div class="gov" data-i18n="' + t.govEn + '">' + t.gov + "</div>" +
+        '<div class="sum" data-i18n="' + t.sumEn + '">' + t.sum + "</div>";
       grid.appendChild(el);
     });
     root.appendChild(grid);
   });
+  I18n.apply();
 })();
+
+/* 전역 드롭존 라우터 */
+FileRouter.attach(document.getElementById("drop"), document.getElementById("routePanel"));
 </script>
 </body>
 </html>
