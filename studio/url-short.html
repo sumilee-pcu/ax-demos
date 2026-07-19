@@ -66,15 +66,17 @@
 <script>
 Shell.init({ active: "url-short" });
 
-// 키·백엔드 없이 CORS를 허용하는 공개 단축 서비스 3중 폴백.
-// is.gd(짧은 코드) → TinyURL(독립 운영이라 is.gd 레이트리밋 시 방어) → v.gd 순
+// 키·백엔드 없이 CORS를 허용하는 공개 단축 서비스.
+// 추적 없이 직접 리다이렉트하는 is.gd·v.gd를 우선(공문·안내용). 단, 둘은 같은 백엔드라 함께 장애날 수 있어,
+// 그때만 TinyURL을 최후 수단으로 쓴다(TinyURL은 제휴 리다이렉터 경유 가능). 셋 다 실패하면 QR만 생성.
+// tinyurl 링크는 안내 문구로 사용자에게 알린다(clean=false).
 const SHORTEN_PROVIDERS = [
-  { url: "https://is.gd/create.php?format=json&url=", parse: function (t) {
+  { url: "https://is.gd/create.php?format=json&url=", clean: true, parse: function (t) {
       const d = JSON.parse(t); if (d.errormessage) throw new Error(d.errormessage); return d.shorturl || null; } },
-  { url: "https://tinyurl.com/api-create.php?url=", parse: function (t) {
+  { url: "https://v.gd/create.php?format=json&url=", clean: true, parse: function (t) {
+      const d = JSON.parse(t); if (d.errormessage) throw new Error(d.errormessage); return d.shorturl || null; } },
+  { url: "https://tinyurl.com/api-create.php?url=", clean: false, parse: function (t) {
       const s = t.trim(); return /^https?:\/\//.test(s) ? s : null; } },
-  { url: "https://v.gd/create.php?format=json&url=", parse: function (t) {
-      const d = JSON.parse(t); return d.shorturl || null; } },
 ];
 let qrDataUrl = null;
 
@@ -109,7 +111,7 @@ async function shorten(url) {
     try {
       const res = await fetch(p.url + encodeURIComponent(url));
       const short = p.parse(await res.text());
-      if (short) return short;
+      if (short) return { shortUrl: short, clean: p.clean };
       throw new Error("빈 응답");
     } catch (e) { lastErr = e; }
   }
@@ -130,8 +132,11 @@ async function run() {
 
   let qrTarget = url;
   let shortUrl = null;
+  let clean = true;
   try {
-    shortUrl = await shorten(url);
+    const r = await shorten(url);
+    shortUrl = r.shortUrl;
+    clean = r.clean;
     qrTarget = shortUrl;
   } catch (e) {
     setHint("단축주소 서비스에 연결하지 못해 QR만 생성했습니다. (원본 주소 기준)");
@@ -141,7 +146,9 @@ async function run() {
   shortBox.hidden = !shortUrl;
   if (shortUrl) {
     document.getElementById("shortUrl").textContent = shortUrl;
-    setHint("완료: 단축주소와 QR을 만들었습니다.");
+    setHint(clean
+      ? "완료: 단축주소와 QR을 만들었습니다."
+      : "완료. 다만 기본 단축 서비스가 응답하지 않아 대체 서비스(TinyURL)로 만들었습니다. 이 링크는 중간 리다이렉트를 거칠 수 있어, 공문에는 잠시 후 다시 시도해 기본 링크를 받는 것을 권합니다.");
   }
   qrDataUrl = makeQr(qrTarget);
   document.getElementById("qrImg").src = qrDataUrl;
