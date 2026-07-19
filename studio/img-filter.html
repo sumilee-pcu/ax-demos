@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>보정·필터: 내PC 스튜디오</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/studio.css">
+<style>
+  .opts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+  .opts label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);}
+  .opts input[type=range]{width:130px;accent-color:var(--cyan);}
+  .opts .v{font-family:var(--mono);font-size:12px;color:var(--muted);width:34px;}
+  .preview{margin:22px 0;border:1px solid var(--line);border-radius:14px;background:var(--surface);
+    display:flex;align-items:center;justify-content:center;min-height:280px;padding:18px;position:relative;}
+  .preview canvas{max-width:100%;max-height:480px;}
+  .orig-tag{position:absolute;top:12px;left:14px;font-family:var(--mono);font-size:11px;color:var(--cyan);display:none;}
+  .preview.showing-orig .orig-tag{display:block;}
+</style>
+</head>
+<body>
+<div class="studio">
+  <aside class="sidebar"></aside>
+  <main class="main">
+
+    <div class="crumb" data-i18n="Image · Clean up evidence photos">이미지 · 증빙사진 다듬기</div>
+    <h1 data-i18n="Adjust &amp; Filter">보정·필터</h1>
+    <p class="desc" data-i18n="Adjust brightness, contrast and saturation, or apply grayscale and sepia presets. Preview is instant; saving applies to full resolution. Everything stays in your browser.">밝기·대비·채도를 조절하고 흑백·세피아 프리셋을 적용합니다. 미리보기는 즉시, 저장은 원본 해상도로 처리됩니다. 모든 처리는 브라우저 안에서만 이루어집니다.</p>
+
+    <div class="toolbar opts">
+      <button class="btn" id="addBtn" data-i18n="Load image">이미지 불러오기</button>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden>
+      <label><span data-i18n="Brightness">밝기</span><input type="range" id="br" min="0" max="200" value="100"><span class="v" id="brV">100</span></label>
+      <label><span data-i18n="Contrast">대비</span><input type="range" id="ct" min="0" max="200" value="100"><span class="v" id="ctV">100</span></label>
+      <label><span data-i18n="Saturation">채도</span><input type="range" id="st" min="0" max="200" value="100"><span class="v" id="stV">100</span></label>
+      <button class="btn" data-preset="gray" data-i18n="Grayscale">흑백</button>
+      <button class="btn" data-preset="sepia" data-i18n="Sepia">세피아</button>
+      <button class="btn" data-preset="sharp" data-i18n="Vivid">선명하게</button>
+      <button class="btn" data-preset="reset" data-i18n="Reset">원본값</button>
+      <span style="flex:1"></span>
+      <button class="btn" id="holdBtn" disabled data-i18n="Hold: original">누르면 원본</button>
+      <button class="btn primary" id="runBtn" disabled data-i18n="Save">저장</button>
+    </div>
+
+    <div class="dropzone" id="drop" data-i18n="Drop an image here or use the button above">여기로 이미지를 끌어다 놓거나 위의 버튼을 누르세요</div>
+    <div class="preview" id="preview" hidden><span class="orig-tag">원본</span><canvas id="pv"></canvas></div>
+    <div class="statusline" id="hint"></div>
+
+  </main>
+</div>
+
+<script src="assets/i18n.js"></script>
+<script src="assets/shell.js"></script>
+<script src="assets/stats.js"></script>
+<script src="assets/canvas-utils.js"></script>
+<script>
+Shell.init({ active: "img-filter" });
+
+let state = null;   // { file, bitmap, small } small: 미리보기용 축소 캔버스
+let fx = { br: 100, ct: 100, st: 100, gray: 0, sepia: 0 };
+
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("fileInput");
+const FILTER_OK = (function () { const c = document.createElement("canvas").getContext("2d"); return "filter" in c; })();
+
+document.getElementById("addBtn").onclick = () => fileInput.click();
+fileInput.onchange = (e) => { if (e.target.files[0]) load(e.target.files[0]); fileInput.value = ""; };
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { const f = [...e.dataTransfer.files].find(CanvasUtils.isImageFile); if (f) load(f); });
+
+function setHint(m) { document.getElementById("hint").textContent = m; }
+
+async function load(file) {
+  setHint("불러오는 중...");
+  const bitmap = await CanvasUtils.loadBitmap(file);
+  const s = Math.min(720 / bitmap.width, 480 / bitmap.height, 1);
+  state = { file, bitmap, small: CanvasUtils.toCanvas(bitmap, bitmap.width * s, bitmap.height * s) };
+  drop.style.display = "none";
+  document.getElementById("preview").hidden = false;
+  document.getElementById("runBtn").disabled = false;
+  document.getElementById("holdBtn").disabled = false;
+  if (!FILTER_OK) setHint("이 브라우저는 캔버스 필터를 지원하지 않아 결과가 다를 수 있습니다. 최신 Chrome·Edge·Safari를 권장합니다.");
+  else setHint("");
+  paint();
+}
+
+function filterString() {
+  const parts = ["brightness(" + fx.br + "%)", "contrast(" + fx.ct + "%)", "saturate(" + fx.st + "%)"];
+  if (fx.gray) parts.push("grayscale(1)");
+  if (fx.sepia) parts.push("sepia(1)");
+  return parts.join(" ");
+}
+
+function applyTo(canvasSrc) {
+  const c = document.createElement("canvas");
+  c.width = canvasSrc.width; c.height = canvasSrc.height;
+  const ctx = c.getContext("2d");
+  ctx.filter = filterString();
+  ctx.drawImage(canvasSrc, 0, 0);
+  return c;
+}
+
+function paint(showOriginal) {
+  if (!state) return;
+  const pv = document.getElementById("pv");
+  const src = showOriginal ? state.small : applyTo(state.small);
+  pv.width = src.width; pv.height = src.height;
+  pv.getContext("2d").drawImage(src, 0, 0);
+  document.getElementById("preview").classList.toggle("showing-orig", !!showOriginal);
+}
+
+["br","ct","st"].forEach(id => {
+  document.getElementById(id).oninput = function () {
+    fx[id] = parseInt(this.value, 10);
+    document.getElementById(id + "V").textContent = this.value;
+    paint();
+  };
+});
+document.querySelectorAll("[data-preset]").forEach(b => {
+  b.onclick = () => {
+    const p = b.dataset.preset;
+    if (p === "gray") { fx.gray = 1; fx.sepia = 0; }
+    else if (p === "sepia") { fx.sepia = 1; fx.gray = 0; }
+    else if (p === "sharp") { fx.ct = 115; fx.st = 112; fx.gray = 0; fx.sepia = 0; }
+    else { fx = { br: 100, ct: 100, st: 100, gray: 0, sepia: 0 }; }
+    ["br","ct","st"].forEach(id => { document.getElementById(id).value = fx[id]; document.getElementById(id + "V").textContent = fx[id]; });
+    paint();
+  };
+});
+const holdBtn = document.getElementById("holdBtn");
+["pointerdown","touchstart"].forEach(ev => holdBtn.addEventListener(ev, () => paint(true)));
+["pointerup","pointerleave","touchend"].forEach(ev => holdBtn.addEventListener(ev, () => paint(false)));
+
+document.getElementById("runBtn").onclick = async () => {
+  if (!state) return;
+  setHint("만드는 중...");
+  try {
+    const full = applyTo(CanvasUtils.toCanvas(state.bitmap));
+    const type = ["image/jpeg","image/png","image/webp"].includes(state.file.type) ? state.file.type : "image/png";
+    const { blob } = await CanvasUtils.exportBlob(full, type, type === "image/jpeg" ? 0.92 : undefined);
+    CanvasUtils.downloadBlob(blob, CanvasUtils.stripExt(state.file.name) + "_보정." + CanvasUtils.extFor(blob.type));
+    Stats.record({ tool: "img-filter", label: "보정·필터", files: 1 });
+    setHint("저장 완료: " + full.width + "x" + full.height + "px · " + CanvasUtils.formatBytes(blob.size));
+  } catch (err) { setHint("실패: " + err.message); }
+};
+</script>
+</body>
+</html>
