@@ -30,7 +30,7 @@
 
     <div class="crumb" data-i18n="Docs · Short links for notices">문서 · 안내문에 짧은 주소</div>
     <h1 data-i18n="Shorten URL">URL 단축</h1>
-    <p class="desc" data-i18n="Shorten a long address and get a QR image at the same time. The QR is generated entirely in your browser; the short link uses the QRLink service.">긴 주소를 짧게 줄이고 QR 이미지를 함께 만듭니다. QR은 전부 브라우저 안에서 생성되고, 단축주소만 QRLink 서비스를 사용합니다.</p>
+    <p class="desc" data-i18n="Shorten a long address and get a QR image. The QR is generated entirely in your browser; shortening sends the URL to an external service (is.gd), the only feature here that leaves your PC.">긴 주소를 짧게 줄이고 QR 이미지를 함께 만듭니다. QR은 전부 브라우저 안에서 생성됩니다. 단축주소는 외부 서비스(is.gd)로 주소를 보내 만들며, 이 항목만 예외적으로 외부 전송이 있습니다.</p>
 
     <div class="row">
       <input type="url" id="urlIn" placeholder="https:// 로 시작하는 주소 또는 example.com">
@@ -66,7 +66,16 @@
 <script>
 Shell.init({ active: "url-short" });
 
-const SHORTEN_API = "https://qrlink.vercel.app/api/shorten";
+// 키·백엔드 없이 CORS를 허용하는 공개 단축 서비스 3중 폴백.
+// is.gd(짧은 코드) → TinyURL(독립 운영이라 is.gd 레이트리밋 시 방어) → v.gd 순
+const SHORTEN_PROVIDERS = [
+  { url: "https://is.gd/create.php?format=json&url=", parse: function (t) {
+      const d = JSON.parse(t); if (d.errormessage) throw new Error(d.errormessage); return d.shorturl || null; } },
+  { url: "https://tinyurl.com/api-create.php?url=", parse: function (t) {
+      const s = t.trim(); return /^https?:\/\//.test(s) ? s : null; } },
+  { url: "https://v.gd/create.php?format=json&url=", parse: function (t) {
+      const d = JSON.parse(t); return d.shorturl || null; } },
+];
 let qrDataUrl = null;
 
 function setHint(m) { document.getElementById("hint").textContent = m; }
@@ -95,15 +104,16 @@ function makeQr(text) {
 }
 
 async function shorten(url) {
-  const res = await fetch(SHORTEN_API, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ url }),
-  });
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  const data = await res.json();
-  if (!data.shortUrl) throw new Error("응답에 shortUrl이 없습니다.");
-  return data.shortUrl;
+  let lastErr = null;
+  for (const p of SHORTEN_PROVIDERS) {
+    try {
+      const res = await fetch(p.url + encodeURIComponent(url));
+      const short = p.parse(await res.text());
+      if (short) return short;
+      throw new Error("빈 응답");
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("단축 서비스에 연결하지 못했습니다.");
 }
 
 document.getElementById("runBtn").onclick = run;
