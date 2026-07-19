@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내PC 스튜디오: 파일이 내 PC를 떠나지 않습니다</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/studio.css">
+</head>
+<body>
+<div class="studio">
+  <aside class="sidebar"></aside>
+  <main class="main">
+
+    <div class="hero">
+      <div class="crumb">$ naepc studio</div>
+      <h1>업로드 없이,<br><span class="grad">내 PC에서 딱 끝나는</span> 파일 작업</h1>
+      <p class="lede">PDF 병합·분할, 이미지 편집, 문서 변환을 브라우저 안에서 처리합니다.
+        파일은 서버로 전송되지 않으며, 설치도 결재도 필요 없습니다.</p>
+      <div class="badges">
+        <span class="badge"><b>무유출</b> 외부 전송 없음</span>
+        <span class="badge"><b>무설치</b> 브라우저만 열면 됨</span>
+        <span class="badge"><b>무결재</b> 설치 신청 불필요</span>
+        <span class="badge"><b>무료</b> 구독 없음</span>
+      </div>
+    </div>
+
+    <div class="statrow">
+      <div class="stat"><div class="k">처리한 파일</div><div class="v"><span id="stFiles">0</span><em>건</em></div></div>
+      <div class="stat"><div class="k">절약한 용량</div><div class="v"><span id="stSaved">0</span><em>KB</em></div></div>
+      <div class="stat"><div class="k">사용한 도구</div><div class="v"><span id="stTools">0</span><em>종</em></div></div>
+      <div class="stat"><div class="k">작업 흐름</div><div class="flow" id="stFlow">아직 없음</div></div>
+    </div>
+    <p class="subnote">이 탭에서만 집계 · 탭을 닫으면 초기화</p>
+
+    <div id="toolGrid"></div>
+
+  </main>
+</div>
+
+<script src="assets/shell.js"></script>
+<script src="assets/stats.js"></script>
+<script>
+Shell.init({ home: true });
+
+/* 통계 카드 */
+(function () {
+  const s = Stats.summary();
+  document.getElementById("stFiles").textContent = s.files;
+  document.getElementById("stSaved").textContent = s.savedKB;
+  document.getElementById("stTools").textContent = s.toolCount;
+  if (s.flow.length) document.getElementById("stFlow").textContent = s.flow.join(" → ");
+})();
+
+/* 도구 그리드 */
+(function () {
+  const root = document.getElementById("toolGrid");
+  Shell.tools.forEach(function (g) {
+    const label = document.createElement("div");
+    label.className = "crumb";
+    label.style.marginTop = "34px";
+    label.textContent = g.cat;
+    root.appendChild(label);
+
+    const grid = document.createElement("div");
+    grid.className = "tool-grid";
+    g.items.forEach(function (t) {
+      let el;
+      if (t.ready) {
+        el = document.createElement("a");
+        el.href = t.href;
+      } else {
+        el = document.createElement("div");
+      }
+      el.className = "toolcard";
+      el.innerHTML =
+        '<div class="name">' + t.name + (t.ready ? "" : '<span class="soon">준비 중</span>') + "</div>" +
+        '<div class="gov">' + t.gov + "</div>" +
+        '<div class="sum">' + t.sum + "</div>";
+      grid.appendChild(el);
+    });
+    root.appendChild(grid);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF 병합: 내PC 스튜디오</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/studio.css">
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="vendor/pdf.min.js"></script>
+</head>
+<body>
+<div class="studio">
+  <aside class="sidebar"></aside>
+  <main class="main">
+
+    <div class="crumb">PDF · 붙임파일 하나로</div>
+    <h1>PDF 병합</h1>
+    <p class="desc">여러 PDF를 불러와 페이지를 삭제하고 회전하고 순서를 바꾼 뒤 하나로 합쳐 내려받습니다.
+      모든 처리는 브라우저 안에서만 이루어지며 서버로 전송되지 않습니다.</p>
+
+    <div class="toolbar">
+      <button class="btn" id="addBtn">PDF 불러오기</button>
+      <input type="file" id="fileInput" accept="application/pdf" multiple hidden>
+      <button class="btn" id="clearBtn" disabled>전체 비우기</button>
+      <span style="flex:1"></span>
+      <span class="statusline" style="padding:0">페이지 <span class="count" id="pageCount">0</span>개</span>
+      <button class="btn primary" id="saveBtn" disabled>PDF로 저장</button>
+    </div>
+
+    <div class="dropzone" id="drop">여기로 PDF 파일을 끌어다 놓거나 위의 PDF 불러오기 버튼을 누르세요</div>
+    <div class="thumb-grid" id="grid"></div>
+    <div class="statusline" id="hint"></div>
+
+  </main>
+</div>
+
+<script src="assets/shell.js"></script>
+<script src="assets/stats.js"></script>
+<script>
+Shell.init({ active: "pdf-merge" });
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
+
+// 불러온 원본 PDF들의 바이트를 보관 (저장 시 pdf-lib가 다시 읽음)
+const sources = [];            // { name, bytes }
+let pages = [];                // { srcIndex, pageIndex, rotation }
+let seq = 0;
+
+const grid = document.getElementById("grid");
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("fileInput");
+
+document.getElementById("addBtn").onclick = () => fileInput.click();
+fileInput.onchange = (e) => { handleFiles(e.target.files); fileInput.value = ""; };
+
+document.getElementById("clearBtn").onclick = () => {
+  sources.length = 0; pages = []; render();
+};
+
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
+
+async function handleFiles(fileList) {
+  const files = [...fileList].filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+  if (!files.length) return;
+  setHint("불러오는 중...");
+  for (const file of files) {
+    if (file.size > 100 * 1024 * 1024) {
+      setHint(file.name + ": 100MB가 넘는 파일은 브라우저 메모리 한계로 실패할 수 있습니다.");
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const srcIndex = sources.length;
+    sources.push({ name: file.name, bytes });
+    const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+    for (let p = 1; p <= doc.numPages; p++) {
+      pages.push({ id: ++seq, srcIndex, pageIndex: p, rotation: 0, _doc: doc });
+    }
+  }
+  render();
+  setHint("");
+}
+
+function setHint(msg) { document.getElementById("hint").textContent = msg; }
+
+async function render() {
+  const has = pages.length > 0;
+  drop.style.display = has ? "none" : "block";
+  document.getElementById("pageCount").textContent = pages.length;
+  document.getElementById("saveBtn").disabled = !has;
+  document.getElementById("clearBtn").disabled = !has;
+  grid.innerHTML = "";
+
+  pages.forEach((pg, idx) => {
+    const card = document.createElement("div");
+    card.className = "page";
+    card.innerHTML = `
+      <div class="thumb"></div>
+      <div class="meta">${idx + 1} / ${pages.length} · 회전 ${pg.rotation}°</div>
+      <div class="actions">
+        <button class="iconbtn" title="앞으로" data-act="left">◀</button>
+        <button class="iconbtn" title="왼쪽 회전" data-act="rotL">↺</button>
+        <button class="iconbtn" title="오른쪽 회전" data-act="rotR">↻</button>
+        <button class="iconbtn del" title="삭제" data-act="del">✕</button>
+        <button class="iconbtn" title="뒤로" data-act="right">▶</button>
+      </div>`;
+    card.querySelectorAll("[data-act]").forEach(b => {
+      b.onclick = () => doAction(idx, b.dataset.act);
+    });
+    grid.appendChild(card);
+    drawThumb(pg, card.querySelector(".thumb"));
+  });
+}
+
+async function drawThumb(pg, container) {
+  try {
+    const page = await pg._doc.getPage(pg.pageIndex);
+    const baseVp = page.getViewport({ scale: 1 });
+    const scale = 150 / baseVp.width;
+    const vp = page.getViewport({ scale, rotation: pg.rotation });
+    const canvas = document.createElement("canvas");
+    canvas.width = vp.width; canvas.height = vp.height;
+    // intent:"print" — 기본(display) 렌더는 rAF로 진행을 조절해 백그라운드 탭에서 멈춘다
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp, intent: "print" }).promise;
+    container.innerHTML = ""; container.appendChild(canvas);
+  } catch (err) {
+    container.textContent = "미리보기 실패";
+  }
+}
+
+function doAction(idx, act) {
+  const pg = pages[idx];
+  if (act === "del") pages.splice(idx, 1);
+  else if (act === "rotL") pg.rotation = (pg.rotation + 270) % 360;
+  else if (act === "rotR") pg.rotation = (pg.rotation + 90) % 360;
+  else if (act === "left" && idx > 0) [pages[idx-1], pages[idx]] = [pages[idx], pages[idx-1]];
+  else if (act === "right" && idx < pages.length - 1) [pages[idx+1], pages[idx]] = [pages[idx], pages[idx+1]];
+  render();
+}
+
+document.getElementById("saveBtn").onclick = async () => {
+  if (!pages.length) return;
+  setHint("PDF를 만드는 중...");
+  const { PDFDocument, degrees } = PDFLib;
+  const loaded = {};
+  for (const pg of pages) {
+    if (!loaded[pg.srcIndex]) {
+      loaded[pg.srcIndex] = await PDFDocument.load(sources[pg.srcIndex].bytes);
+    }
+  }
+  const out = await PDFDocument.create();
+  for (const pg of pages) {
+    const [copied] = await out.copyPages(loaded[pg.srcIndex], [pg.pageIndex - 1]);
+    if (pg.rotation) {
+      const base = copied.getRotation().angle || 0;
+      copied.setRotation(degrees((base + pg.rotation) % 360));
+    }
+    out.addPage(copied);
+  }
+  const bytes = await out.save();
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "merged.pdf";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  Stats.record({ tool: "pdf-merge", label: "PDF 병합", files: sources.length });
+  setHint("저장 완료. merged.pdf 파일을 확인하세요.");
+};
+</script>
+</body>
+</html>
