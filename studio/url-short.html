@@ -105,11 +105,19 @@ function makeQr(text) {
   return c.toDataURL("image/png");
 }
 
+const PROVIDER_TIMEOUT_MS = 3500;
+
+function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+
 async function shorten(url) {
   let lastErr = null;
   for (const p of SHORTEN_PROVIDERS) {
     try {
-      const res = await fetch(p.url + encodeURIComponent(url));
+      const res = await fetchWithTimeout(p.url + encodeURIComponent(url), PROVIDER_TIMEOUT_MS);
       const short = p.parse(await res.text());
       if (short) return { shortUrl: short, clean: p.clean };
       throw new Error("빈 응답");
@@ -128,31 +136,29 @@ async function run() {
 
   document.getElementById("result").hidden = false;
   document.getElementById("origUrl").textContent = url;
-  setHint("만드는 중...");
+  document.getElementById("shortBox").hidden = true;
 
-  let qrTarget = url;
-  let shortUrl = null;
-  let clean = true;
+  // QR은 원본 주소로 먼저 즉시 표시한다: 네트워크 상태와 무관하게 화면이 비어 보이지 않는다.
+  qrDataUrl = makeQr(url);
+  document.getElementById("qrImg").src = qrDataUrl;
+  setHint("단축주소를 만드는 중... (QR은 이미 사용할 수 있습니다)");
+  Stats.record({ tool: "url-short", label: "URL 단축", files: 1 });
+
   try {
     const r = await shorten(url);
-    shortUrl = r.shortUrl;
-    clean = r.clean;
-    qrTarget = shortUrl;
-  } catch (e) {
-    setHint("단축주소 서비스에 연결하지 못해 QR만 생성했습니다. (원본 주소 기준)");
-  }
-
-  const shortBox = document.getElementById("shortBox");
-  shortBox.hidden = !shortUrl;
-  if (shortUrl) {
-    document.getElementById("shortUrl").textContent = shortUrl;
-    setHint(clean
+    // 입력값이 그새 바뀌었으면(사용자가 다른 주소로 재시도) 이 결과는 버린다.
+    if (document.getElementById("origUrl").textContent !== url) return;
+    document.getElementById("shortUrl").textContent = r.shortUrl;
+    document.getElementById("shortBox").hidden = false;
+    qrDataUrl = makeQr(r.shortUrl);
+    document.getElementById("qrImg").src = qrDataUrl;
+    setHint(r.clean
       ? "완료: 단축주소와 QR을 만들었습니다."
       : "완료. 다만 기본 단축 서비스가 응답하지 않아 대체 서비스(TinyURL)로 만들었습니다. 이 링크는 중간 리다이렉트를 거칠 수 있어, 공문에는 잠시 후 다시 시도해 기본 링크를 받는 것을 권합니다.");
+  } catch (e) {
+    if (document.getElementById("origUrl").textContent !== url) return;
+    setHint("단축주소 서비스에 연결하지 못해 QR만 만들었습니다. (원본 주소 기준. 네트워크가 이 페이지의 유일한 외부 연결입니다.)");
   }
-  qrDataUrl = makeQr(qrTarget);
-  document.getElementById("qrImg").src = qrDataUrl;
-  Stats.record({ tool: "url-short", label: "URL 단축", files: 1 });
 }
 
 async function copy(t) {
