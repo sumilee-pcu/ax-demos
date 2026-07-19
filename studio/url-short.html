@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URL 단축: 내PC 스튜디오</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/studio.css">
+<script src="vendor/qrcode.min.js"></script>
+<style>
+  .row{display:flex;gap:10px;margin:22px 0 0;}
+  .row input{flex:1;font-family:var(--mono);font-size:14px;background:var(--surface);border:1px solid var(--line);
+    color:var(--ink);border-radius:11px;padding:13px 16px;outline:none;}
+  .row input:focus{border-color:var(--cyan);}
+  .result{display:grid;grid-template-columns:1fr auto;gap:14px;margin:20px 0;align-items:start;}
+  .rbox{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:18px 20px;}
+  .rbox .t{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:6px;}
+  .rbox .link{font-family:var(--mono);font-size:15px;word-break:break-all;color:var(--cyan);}
+  .qrbox{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;display:flex;
+    align-items:center;justify-content:center;}
+  .qrbox img{display:block;width:180px;height:180px;image-rendering:pixelated;}
+  @media(max-width:920px){.result{grid-template-columns:1fr;}.qrbox{justify-self:center;}}
+</style>
+</head>
+<body>
+<div class="studio">
+  <aside class="sidebar"></aside>
+  <main class="main">
+
+    <div class="crumb" data-i18n="Docs · Short links for notices">문서 · 안내문에 짧은 주소</div>
+    <h1 data-i18n="Shorten URL">URL 단축</h1>
+    <p class="desc" data-i18n="Shorten a long address and get a QR image at the same time. The QR is generated entirely in your browser; the short link uses the QRLink service.">긴 주소를 짧게 줄이고 QR 이미지를 함께 만듭니다. QR은 전부 브라우저 안에서 생성되고, 단축주소만 QRLink 서비스를 사용합니다.</p>
+
+    <div class="row">
+      <input type="url" id="urlIn" placeholder="https:// 로 시작하는 주소 또는 example.com">
+      <button class="btn primary" id="runBtn" data-i18n="Create">만들기</button>
+    </div>
+
+    <div class="result" id="result" hidden>
+      <div>
+        <div class="rbox" id="shortBox" hidden>
+          <div class="t" data-i18n="SHORT LINK">단축주소</div>
+          <div class="link" id="shortUrl"></div>
+          <div style="margin-top:12px"><button class="btn" id="copyShort" data-i18n="Copy">복사</button></div>
+        </div>
+        <div class="rbox" id="origBox" style="margin-top:12px">
+          <div class="t" data-i18n="ORIGINAL">원본 주소</div>
+          <div class="link" id="origUrl" style="color:var(--ink-2)"></div>
+          <div style="margin-top:12px">
+            <button class="btn" id="copyOrig" data-i18n="Copy">복사</button>
+            <button class="btn" id="dlQr" data-i18n="Download QR">QR 저장</button>
+          </div>
+        </div>
+      </div>
+      <div class="qrbox"><img id="qrImg" alt="QR"></div>
+    </div>
+    <div class="statusline" id="hint"></div>
+
+  </main>
+</div>
+
+<script src="assets/i18n.js"></script>
+<script src="assets/shell.js"></script>
+<script src="assets/stats.js"></script>
+<script>
+Shell.init({ active: "url-short" });
+
+const SHORTEN_API = "https://qrlink.vercel.app/api/shorten";
+let qrDataUrl = null;
+
+function setHint(m) { document.getElementById("hint").textContent = m; }
+
+function normalize(v) {
+  const t = String(v || "").trim();
+  if (!t) return "";
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : "https://" + t;
+}
+
+function makeQr(text) {
+  const qr = qrcode(0, "M");
+  qr.addData(text);
+  qr.make();
+  const size = qr.getModuleCount();
+  const cell = 8, quiet = 4;
+  const c = document.createElement("canvas");
+  c.width = c.height = (size + quiet * 2) * cell;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = "#000000";
+  for (let r = 0; r < size; r++) for (let col = 0; col < size; col++) {
+    if (qr.isDark(r, col)) ctx.fillRect((col + quiet) * cell, (r + quiet) * cell, cell, cell);
+  }
+  return c.toDataURL("image/png");
+}
+
+async function shorten(url) {
+  const res = await fetch(SHORTEN_API, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  if (!data.shortUrl) throw new Error("응답에 shortUrl이 없습니다.");
+  return data.shortUrl;
+}
+
+document.getElementById("runBtn").onclick = run;
+document.getElementById("urlIn").addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+
+async function run() {
+  const url = normalize(document.getElementById("urlIn").value);
+  if (!url) { setHint("주소를 입력하세요."); return; }
+  try { new URL(url); } catch (e) { setHint("올바른 주소가 아닙니다."); return; }
+
+  document.getElementById("result").hidden = false;
+  document.getElementById("origUrl").textContent = url;
+  setHint("만드는 중...");
+
+  let qrTarget = url;
+  let shortUrl = null;
+  try {
+    shortUrl = await shorten(url);
+    qrTarget = shortUrl;
+  } catch (e) {
+    setHint("단축주소 서비스에 연결하지 못해 QR만 생성했습니다. (원본 주소 기준)");
+  }
+
+  const shortBox = document.getElementById("shortBox");
+  shortBox.hidden = !shortUrl;
+  if (shortUrl) {
+    document.getElementById("shortUrl").textContent = shortUrl;
+    setHint("완료: 단축주소와 QR을 만들었습니다.");
+  }
+  qrDataUrl = makeQr(qrTarget);
+  document.getElementById("qrImg").src = qrDataUrl;
+  Stats.record({ tool: "url-short", label: "URL 단축", files: 1 });
+}
+
+async function copy(t) {
+  try { await navigator.clipboard.writeText(t); setHint("복사했습니다."); }
+  catch (e) { setHint("복사 실패: 브라우저 권한을 확인하세요."); }
+}
+document.getElementById("copyShort").onclick = () => copy(document.getElementById("shortUrl").textContent);
+document.getElementById("copyOrig").onclick = () => copy(document.getElementById("origUrl").textContent);
+document.getElementById("dlQr").onclick = () => {
+  if (!qrDataUrl) return;
+  const a = document.createElement("a");
+  a.href = qrDataUrl;
+  a.download = "qr.png";
+  a.click();
+};
+</script>
+</body>
+</html>
