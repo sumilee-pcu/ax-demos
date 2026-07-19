@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이미지 → PDF: 내PC 스튜디오</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/studio.css">
+<script src="vendor/pdf-lib.min.js"></script>
+<style>
+  .opts{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .opts select{font-family:inherit;font-size:13.5px;background:var(--surface);border:1px solid var(--line);
+    color:var(--ink);border-radius:9px;padding:9px 12px;}
+  .page .thumb img{max-width:100%;max-height:200px;display:block;}
+</style>
+</head>
+<body>
+<div class="studio">
+  <aside class="sidebar"></aside>
+  <main class="main">
+
+    <div class="crumb" data-i18n="PDF · Scans into a document">PDF · 스캔본을 문서로</div>
+    <h1 data-i18n="Images to PDF">이미지 → PDF</h1>
+    <p class="desc" data-i18n="Arrange JPG, PNG and WEBP images in order and combine them into a single PDF. Everything stays in your browser.">JPG·PNG·WEBP 이미지를 순서대로 배치해 한 개의 PDF로 만듭니다. 모든 처리는 브라우저 안에서만 이루어집니다.</p>
+
+    <div class="toolbar opts">
+      <button class="btn" id="addBtn" data-i18n="Load images">이미지 불러오기</button>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple hidden>
+      <select id="paper">
+        <option value="a4p">A4 세로</option>
+        <option value="a4l">A4 가로</option>
+        <option value="fit">원본 크기</option>
+      </select>
+      <select id="margin">
+        <option value="0">여백 없음</option>
+        <option value="24" selected>여백 좁게</option>
+        <option value="48">여백 보통</option>
+      </select>
+      <button class="btn" id="clearBtn" disabled data-i18n="Clear all">전체 비우기</button>
+      <span style="flex:1"></span>
+      <span class="statusline" style="padding:0"><span data-i18n="images">이미지</span> <span class="count" id="imgCount">0</span></span>
+      <button class="btn primary" id="runBtn" disabled data-i18n="Save PDF">PDF로 저장</button>
+    </div>
+
+    <div class="dropzone" id="drop" data-i18n="Drop images here or use the button above">여기로 이미지 파일들을 끌어다 놓거나 위의 버튼을 누르세요</div>
+    <div class="thumb-grid" id="grid"></div>
+    <div class="statusline" id="hint"></div>
+
+  </main>
+</div>
+
+<script src="assets/i18n.js"></script>
+<script src="assets/shell.js"></script>
+<script src="assets/stats.js"></script>
+<script src="assets/pdf-utils.js"></script>
+<script src="assets/canvas-utils.js"></script>
+<script>
+Shell.init({ active: "image-to-pdf" });
+
+let items = [];   // { file, url }
+
+const grid = document.getElementById("grid");
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("fileInput");
+
+document.getElementById("addBtn").onclick = () => fileInput.click();
+fileInput.onchange = (e) => { addFiles(e.target.files); fileInput.value = ""; };
+document.getElementById("clearBtn").onclick = () => { items = []; render(); };
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+
+function setHint(m) { document.getElementById("hint").textContent = m; }
+
+function addFiles(list) {
+  const files = [...list].filter(CanvasUtils.isImageFile);
+  if (!files.length) { setHint("JPG·PNG·WEBP 파일만 지원합니다."); return; }
+  files.forEach(f => items.push({ file: f, url: URL.createObjectURL(f) }));
+  render();
+}
+
+function render() {
+  const has = items.length > 0;
+  drop.style.display = has ? "none" : "block";
+  document.getElementById("imgCount").textContent = items.length;
+  document.getElementById("runBtn").disabled = !has;
+  document.getElementById("clearBtn").disabled = !has;
+  grid.innerHTML = "";
+  items.forEach((it, idx) => {
+    const card = document.createElement("div");
+    card.className = "page";
+    card.innerHTML = `
+      <div class="thumb"><img src="${it.url}" alt=""></div>
+      <div class="meta">${idx + 1} / ${items.length} · ${it.file.name.length > 18 ? it.file.name.slice(0, 16) + "…" : it.file.name}</div>
+      <div class="actions">
+        <button class="iconbtn" title="앞으로" data-act="left">◀</button>
+        <button class="iconbtn del" title="삭제" data-act="del">✕</button>
+        <button class="iconbtn" title="뒤로" data-act="right">▶</button>
+      </div>`;
+    card.querySelectorAll("[data-act]").forEach(b => { b.onclick = () => doAction(idx, b.dataset.act); });
+    grid.appendChild(card);
+  });
+}
+
+function doAction(idx, act) {
+  if (act === "del") { URL.revokeObjectURL(items[idx].url); items.splice(idx, 1); }
+  else if (act === "left" && idx > 0) [items[idx-1], items[idx]] = [items[idx], items[idx-1]];
+  else if (act === "right" && idx < items.length - 1) [items[idx+1], items[idx]] = [items[idx], items[idx+1]];
+  render();
+}
+
+document.getElementById("runBtn").onclick = async () => {
+  if (!items.length) return;
+  setHint("PDF를 만드는 중...");
+  try {
+    const { PDFDocument } = PDFLib;
+    const paper = document.getElementById("paper").value;
+    const margin = parseInt(document.getElementById("margin").value, 10);
+    const A4 = [595.28, 841.89];
+    const out = await PDFDocument.create();
+
+    for (const it of items) {
+      let image;
+      if (it.file.type === "image/jpeg") {
+        image = await out.embedJpg(await it.file.arrayBuffer());
+      } else if (it.file.type === "image/png") {
+        image = await out.embedPng(await it.file.arrayBuffer());
+      } else {
+        // WEBP 등은 pdf-lib가 직접 embed하지 못해 canvas로 PNG 변환 후 embed
+        const bmp = await CanvasUtils.loadBitmap(it.file);
+        const c = CanvasUtils.toCanvas(bmp);
+        const { blob } = await CanvasUtils.exportBlob(c, "image/png");
+        image = await out.embedPng(await blob.arrayBuffer());
+      }
+      let pw, ph;
+      if (paper === "fit") { pw = image.width + margin * 2; ph = image.height + margin * 2; }
+      else if (paper === "a4l") { pw = A4[1]; ph = A4[0]; }
+      else { pw = A4[0]; ph = A4[1]; }
+      const page = out.addPage([pw, ph]);
+      const maxW = pw - margin * 2, maxH = ph - margin * 2;
+      const s = Math.min(maxW / image.width, maxH / image.height, paper === "fit" ? 1 : Infinity);
+      const w = image.width * s, h = image.height * s;
+      page.drawImage(image, { x: (pw - w) / 2, y: (ph - h) / 2, width: w, height: h });
+    }
+
+    const bytes = await out.save();
+    PdfUtils.downloadBytes(bytes, "이미지묶음.pdf");
+    Stats.record({ tool: "image-to-pdf", label: "이미지→PDF", files: items.length });
+    setHint("저장 완료: 이미지 " + items.length + "장을 PDF로 만들었습니다.");
+  } catch (err) {
+    setHint("실패: " + err.message);
+  }
+};
+</script>
+</body>
+</html>
