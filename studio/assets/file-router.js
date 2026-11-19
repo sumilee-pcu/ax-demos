@@ -11,22 +11,22 @@
     const mds = list.filter(function (f) { return /\.(md|markdown)$/i.test(f.name); });
 
     const sug = [];   // { href, name, why }
-    if (pdfs.length >= 2) sug.push({ href: "pdf-merge.html", name: "PDF 병합", why: "PDF " + pdfs.length + "개: 하나로 묶기" });
+    if (pdfs.length >= 2) sug.push({ href: "pdf-merge.html", name: "PDF 병합", why: "PDF " + pdfs.length + "개: 단일 파일로 병합" });
     if (pdfs.length === 1) {
-      sug.push({ href: "pdf-split.html", name: "PDF 분할·추출", why: "필요한 쪽만 골라내기" });
-      sug.push({ href: "pdf-to-image.html", name: "PDF → 이미지", why: "페이지를 그림파일로" });
+      sug.push({ href: "pdf-split.html", name: "PDF 분할·추출", why: "페이지 범위 추출" });
+      sug.push({ href: "pdf-to-image.html", name: "PDF → 이미지", why: "페이지 이미지 변환" });
     }
     if (imgs.length >= 2) {
-      sug.push({ href: "image-to-pdf.html", name: "이미지 → PDF", why: "이미지 " + imgs.length + "장: 한 문서로" });
-      sug.push({ href: "img-convert.html", name: "형식 변환", why: "여러 장 일괄 변환" });
+      sug.push({ href: "image-to-pdf.html", name: "이미지 → PDF", why: "이미지 " + imgs.length + "장: 단일 문서로 통합" });
+      sug.push({ href: "img-convert.html", name: "형식 변환", why: "복수 파일 일괄 변환" });
     }
     if (imgs.length === 1) {
-      sug.push({ href: "img-compress.html", name: "압축", why: "제출용 용량 줄이기" });
-      sug.push({ href: "img-resize.html", name: "리사이즈", why: "규격 맞추기" });
-      sug.push({ href: "img-crop.html", name: "자르기", why: "필요한 부분만" });
+      sug.push({ href: "img-compress.html", name: "압축", why: "파일 용량 축소" });
+      sug.push({ href: "img-resize.html", name: "리사이즈", why: "해상도 조정" });
+      sug.push({ href: "img-crop.html", name: "자르기", why: "영역 지정 추출" });
     }
-    if (jsoncsv.length) sug.push({ href: "json-csv.html", name: "JSON ⇄ CSV", why: "자료 형식 맞추기" });
-    if (mds.length) sug.push({ href: "md-html.html", name: "Markdown → HTML", why: "문서를 웹으로" });
+    if (jsoncsv.length) sug.push({ href: "json-csv.html", name: "JSON ⇄ CSV", why: "데이터 형식 변환" });
+    if (mds.length) sug.push({ href: "md-html.html", name: "Markdown → HTML", why: "마크업 문서 변환" });
     return { sug, total: list.length, known: pdfs.length + imgs.length + jsoncsv.length + mds.length };
   }
 
@@ -49,7 +49,7 @@
         }
         const note = document.createElement("div");
         note.className = "route-note";
-        note.textContent = "파일 " + r.total + "개를 확인했습니다. 아래 도구를 열어 같은 파일을 다시 놓으면 바로 처리됩니다.";
+        note.textContent = "파일 " + r.total + "개를 확인했습니다. 아래 도구를 열어 동일 파일을 다시 드롭하면 즉시 처리됩니다.";
         panelEl.appendChild(note);
         const wrap = document.createElement("div");
         wrap.className = "route-grid";

@@ -28,13 +28,13 @@
   <aside class="sidebar"></aside>
   <main class="main">
 
-    <div class="crumb" data-i18n="Docs · Short links for notices">문서 · 안내문에 짧은 주소</div>
+    <div class="crumb" data-i18n="Docs · Short links for notices">문서 · 단축 주소 · QR 생성</div>
     <h1 data-i18n="Shorten URL">URL 단축</h1>
-    <p class="desc" data-i18n="Shorten a long address and get a QR image. The QR is generated entirely in your browser; shortening sends the URL to an external service (is.gd), the only feature here that leaves your PC.">긴 주소를 짧게 줄이고 QR 이미지를 함께 만듭니다. QR은 전부 브라우저 안에서 생성됩니다. 단축주소는 외부 서비스(is.gd)로 주소를 보내 만들며, 이 항목만 예외적으로 외부 전송이 있습니다.</p>
+    <p class="desc" data-i18n="Shorten a long address and get a QR image. The QR is generated entirely in your browser; shortening sends the URL to an external service (is.gd), the only feature here that leaves your PC.">긴 주소를 단축하고 QR 이미지를 함께 생성합니다. QR은 전부 브라우저 내에서 생성됩니다. 단축 주소는 외부 서비스(is.gd)에 주소를 전송해 생성하며, 이 항목에 한해 외부 전송이 발생합니다.</p>
 
     <div class="row">
       <input type="url" id="urlIn" placeholder="https:// 로 시작하는 주소 또는 example.com">
-      <button class="btn primary" id="runBtn" data-i18n="Create">만들기</button>
+      <button class="btn primary" id="runBtn" data-i18n="Create">생성</button>
     </div>
 
     <div class="result" id="result" hidden>
@@ -141,7 +141,7 @@ async function run() {
   // QR은 원본 주소로 먼저 즉시 표시한다: 네트워크 상태와 무관하게 화면이 비어 보이지 않는다.
   qrDataUrl = makeQr(url);
   document.getElementById("qrImg").src = qrDataUrl;
-  setHint("단축주소를 만드는 중... (QR은 이미 사용할 수 있습니다)");
+  setHint("단축 주소 생성 중... (QR은 즉시 사용 가능)");
   Stats.record({ tool: "url-short", label: "URL 단축", files: 1 });
 
   try {
@@ -153,11 +153,11 @@ async function run() {
     qrDataUrl = makeQr(r.shortUrl);
     document.getElementById("qrImg").src = qrDataUrl;
     setHint(r.clean
-      ? "완료: 단축주소와 QR을 만들었습니다."
-      : "완료. 다만 기본 단축 서비스가 응답하지 않아 대체 서비스(TinyURL)로 만들었습니다. 이 링크는 중간 리다이렉트를 거칠 수 있어, 공문에는 잠시 후 다시 시도해 기본 링크를 받는 것을 권합니다.");
+      ? "완료: 단축 주소와 QR을 생성했습니다."
+      : "완료. 다만 기본 단축 서비스가 응답하지 않아 대체 서비스(TinyURL)로 생성했습니다. 이 링크는 중간 리다이렉트를 거칠 수 있으므로, 공식 문서에는 잠시 후 재시도하여 기본 링크를 사용하는 것을 권장합니다.");
   } catch (e) {
     if (document.getElementById("origUrl").textContent !== url) return;
-    setHint("단축주소 서비스에 연결하지 못해 QR만 만들었습니다. (원본 주소 기준. 네트워크가 이 페이지의 유일한 외부 연결입니다.)");
+    setHint("단축주소 서비스에 연결하지 못해 QR만 생성했습니다. (원본 주소 기준. 단축 서비스 호출이 이 페이지의 유일한 외부 통신입니다.)");
   }
 }
 

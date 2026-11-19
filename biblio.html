@@ -65,10 +65,10 @@
   <a class="back" href="index.html">← 미션 목록</a>
   <div class="eyebrow">$ build bibliography</div>
   <h1>서지정보 관리</h1>
-  <p class="sub">책 정보를 모아 참고문헌 목록으로 관리합니다. 새로고침해도 남아 있습니다.</p>
+  <p class="sub">도서의 서지정보를 입력해 참고문헌 목록으로 관리합니다. 입력 내용은 브라우저에 저장되어 새로고침 후에도 유지됩니다.</p>
 
   <div class="form">
-    <input id="f-title" class="full" type="text" placeholder="책 제목">
+    <input id="f-title" class="full" type="text" placeholder="도서명">
     <input id="f-author" type="text" placeholder="저자">
     <input id="f-pub" type="text" placeholder="출판사">
     <input id="f-year" type="text" placeholder="출판연도 (예: 2026)">
@@ -83,7 +83,7 @@
   </div>
 
   <ul id="list"></ul>
-  <div class="empty" id="empty">아직 등록된 책이 없습니다. 위에서 추가해 보세요.</div>
+  <div class="empty" id="empty">등록된 도서가 없습니다. 상단 입력란에서 추가하세요.</div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -111,7 +111,7 @@ function citation(b){
 
 function add(){
   const title = $("f-title").value.trim();
-  if(!title){ toast("책 제목을 입력하세요"); return; }
+  if(!title){ toast("도서명을 입력하세요"); return; }
   books.push({
     id:++seq, title,
     author:$("f-author").value.trim(),
@@ -124,10 +124,10 @@ function add(){
 $("add").onclick = add;
 
 $("copyAll").onclick = async () => {
-  if(!books.length){ toast("복사할 책이 없습니다"); return; }
+  if(!books.length){ toast("복사할 도서가 없습니다"); return; }
   const text = books.map((b,i)=>`${i+1}. ${citation(b)}`).join("\n");
   try { await navigator.clipboard.writeText(text); toast("참고문헌 목록을 복사했습니다"); }
-  catch { toast("복사 권한이 없어 실패했습니다"); }
+  catch { toast("클립보드 권한이 없어 복사에 실패했습니다"); }
 };
 
 let toastTimer;

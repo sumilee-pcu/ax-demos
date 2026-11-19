@@ -16,11 +16,11 @@
   </style>
 </head>
 <body>
-  <div id="hint">바닥을 누르거나 WASD · 방향키로 걷기</div>
-  <div id="count">넣은 장작 0개</div>
-  <div id="people">지금 접속한 사람 1명</div>
+  <div id="hint">바닥 클릭 또는 WASD · 방향키로 이동</div>
+  <div id="count">추가한 장작 0개</div>
+  <div id="people">현재 접속자 1명</div>
   <button id="soundBtn" type="button">소리 켜기</button>
-  <button id="woodBtn" type="button">장작 넣기</button>
+  <button id="woodBtn" type="button">장작 추가</button>
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
@@ -287,7 +287,7 @@
     const todayKey = 'campfire-wood-' + new Date().toISOString().slice(0, 10);
     let woodCount = 0;
     try { woodCount = parseInt(localStorage.getItem(todayKey) || '0', 10) || 0; } catch (e) {}
-    function showCount() { countEl.textContent = '넣은 장작 ' + woodCount + '개'; }
+    function showCount() { countEl.textContent = '추가한 장작 ' + woodCount + '개'; }
     showCount();
 
     let bowT = -1;        // 몸 숙이기 시간(0~1.2초), -1이면 쉬는 중
@@ -330,7 +330,7 @@
     const peopleEl = document.getElementById('people');
     const APP_ID = 'dongduk-ai-campfire-1120';
     let sendPos = null, sendWood = null;
-    function showPeople() { peopleEl.textContent = '지금 접속한 사람 ' + (peers.size + 1) + '명'; }
+    function showPeople() { peopleEl.textContent = '현재 접속자 ' + (peers.size + 1) + '명'; }
     function colorFor(id) {
       let h = 0;
       for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
