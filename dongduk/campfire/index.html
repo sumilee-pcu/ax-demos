@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>온라인 모닥불</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #05070f; touch-action: none; }
+    canvas { display: block; }
+    #count { position: fixed; left: 0; right: 0; top: 34px; text-align: center; color: #ffd9a0; font: 16px sans-serif; pointer-events: none; }
+    #woodBtn { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 14px 28px; font: 18px sans-serif; color: #2a1608; background: #ffb257; border: 0; border-radius: 28px; cursor: pointer; }
+    #woodBtn:active { background: #ff9a2e; }
+    #soundBtn { position: fixed; right: 12px; top: 10px; padding: 8px 14px; font: 14px sans-serif; color: #cfd6ff; background: rgba(30, 36, 80, 0.8); border: 1px solid #5560a8; border-radius: 18px; cursor: pointer; }
+    #people { position: fixed; left: 0; right: 0; top: 58px; text-align: center; color: #cfd6ff; font: 14px sans-serif; pointer-events: none; }
+    #hint { position: fixed; left: 0; right: 0; top: 10px; text-align: center; color: #cfd6ff; font: 14px sans-serif; opacity: 0.8; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="hint">바닥을 누르거나 WASD · 방향키로 걷기</div>
+  <div id="count">넣은 장작 0개</div>
+  <div id="people">지금 접속한 사람 1명</div>
+  <button id="soundBtn" type="button">소리 켜기</button>
+  <button id="woodBtn" type="button">장작 넣기</button>
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+    // ---------- 장면 ----------
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070a1c);
+    scene.fog = new THREE.Fog(0x070a1c, 25, 70);
+
+    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 200);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0x333a66, 0.8));
+    const moon = new THREE.DirectionalLight(0x8899ff, 0.25);
+    moon.position.set(-10, 20, 5);
+    scene.add(moon);
+
+    // 바닥
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(40, 48),
+      new THREE.MeshStandardMaterial({ color: 0x1d2a1a, roughness: 1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // 모닥불: 돌 + 장작 + 불꽃 + 빛
+    const fire = new THREE.Group();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const stone = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.25),
+        new THREE.MeshStandardMaterial({ color: 0x555a66, roughness: 1 })
+      );
+      stone.position.set(Math.cos(a) * 1.0, 0.12, Math.sin(a) * 1.0);
+      fire.add(stone);
+    }
+    for (let i = 0; i < 3; i++) {
+      const log = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 1.3, 8),
+        new THREE.MeshStandardMaterial({ color: 0x4a2f1a })
+      );
+      log.rotation.z = Math.PI / 2;
+      log.rotation.y = (i / 3) * Math.PI;
+      log.position.y = 0.15;
+      fire.add(log);
+    }
+    const flame = new THREE.Mesh(
+      new THREE.ConeGeometry(0.45, 1.3, 12),
+      new THREE.MeshBasicMaterial({ color: 0xff9a2e, transparent: true, opacity: 0.9 })
+    );
+    flame.position.y = 0.8;
+    fire.add(flame);
+    const flameCore = new THREE.Mesh(
+      new THREE.ConeGeometry(0.22, 0.8, 10),
+      new THREE.MeshBasicMaterial({ color: 0xffe08a })
+    );
+    flameCore.position.y = 0.6;
+    fire.add(flameCore);
+    const fireLight = new THREE.PointLight(0xff8a2a, 40, 30, 1.6);
+    fireLight.position.y = 1.2;
+    fire.add(fireLight);
+    scene.add(fire);
+
+    // 나무
+    function makeTree(x, z, s) {
+      const t = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.25, 0.35, 1.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0x3b2a1c })
+      );
+      trunk.position.y = 0.75;
+      t.add(trunk);
+      for (let i = 0; i < 3; i++) {
+        const cone = new THREE.Mesh(
+          new THREE.ConeGeometry(1.5 - i * 0.35, 2.2, 8),
+          new THREE.MeshStandardMaterial({ color: 0x14361f })
+        );
+        cone.position.y = 2.2 + i * 1.1;
+        t.add(cone);
+      }
+      t.position.set(x, 0, z);
+      t.scale.setScalar(s);
+      scene.add(t);
+    }
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + Math.random() * 0.3;
+      const r = 14 + Math.random() * 10;
+      makeTree(Math.cos(a) * r, Math.sin(a) * r, 0.9 + Math.random() * 0.8);
+    }
+
+    // 별
+    const starPos = [];
+    for (let i = 0; i < 600; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const e = Math.random() * 1.3 + 0.1;
+      const r = 90;
+      starPos.push(Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, Math.sin(a) * Math.cos(e) * r);
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, fog: false }));
+    scene.add(stars);
+
+    // ---------- 인형 ----------
+    function makeDoll(color) {
+      const g = new THREE.Group();
+      const inner = new THREE.Group();
+      g.add(inner);
+      g.userData.inner = inner;
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(0.45, 20, 16),
+        new THREE.MeshStandardMaterial({ color })
+      );
+      body.position.y = 0.5;
+      body.scale.y = 1.15;
+      inner.add(body);
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.28, 20, 16),
+        new THREE.MeshStandardMaterial({ color: 0xffd9b8 })
+      );
+      head.position.y = 1.25;
+      inner.add(head);
+      return g;
+    }
+    const me = makeDoll(0xe8643c);
+    me.position.set(0, 0, 5);
+    scene.add(me);
+
+    // ---------- 입장 자리 ----------
+    // 모닥불 둘레 16자리 중 다른 사람과 겹치지 않는 아무 자리에서 시작한다
+    const peers = new Map();   // peerId -> { doll, tx, tz, ry, seen }
+    const SLOTS = 16, SPAWN_R = 4;
+    function pickSpawn() {
+      const order = [...Array(SLOTS).keys()].sort(() => Math.random() - 0.5);
+      for (const i of order) {
+        const a = (i / SLOTS) * Math.PI * 2;
+        const x = Math.cos(a) * SPAWN_R, z = Math.sin(a) * SPAWN_R;
+        let free = true;
+        for (const p of peers.values()) {
+          if (Math.hypot(p.doll.position.x - x, p.doll.position.z - z) < 1.5) { free = false; break; }
+        }
+        if (free) { me.position.set(x, 0, z); return; }
+      }
+    }
+    pickSpawn();
+    let moved = false;      // 직접 걷기 시작하면 자리를 다시 고르지 않는다
+
+    // ---------- 걷기 ----------
+    const keys = {};
+    let target = null;
+    addEventListener('keydown', (e) => { keys[e.code] = true; target = null; moved = true; });
+    addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    function pickGround(clientX, clientY) {
+      pointer.set((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1);
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObject(ground)[0];
+      if (hit) { target = hit.point.clone(); moved = true; }
+    }
+    // 마우스와 터치 모두 pointerdown 하나로 처리
+    renderer.domElement.addEventListener('pointerdown', (e) => pickGround(e.clientX, e.clientY));
+
+    const SPEED = 4;
+    function updateMe(dt) {
+      let dx = 0, dz = 0;
+      if (keys['KeyW'] || keys['ArrowUp']) dz -= 1;
+      if (keys['KeyS'] || keys['ArrowDown']) dz += 1;
+      if (keys['KeyA'] || keys['ArrowLeft']) dx -= 1;
+      if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
+      if (dx || dz) {
+        const len = Math.hypot(dx, dz);
+        dx /= len; dz /= len;
+      } else if (target) {
+        const vx = target.x - me.position.x, vz = target.z - me.position.z;
+        const d = Math.hypot(vx, vz);
+        if (d < 0.1) target = null;
+        else { dx = vx / d; dz = vz / d; }
+      }
+      if (dx || dz) {
+        me.position.x += dx * SPEED * dt;
+        me.position.z += dz * SPEED * dt;
+        const r = Math.hypot(me.position.x, me.position.z);
+        if (r > 35) { me.position.x *= 35 / r; me.position.z *= 35 / r; }
+        me.rotation.y = Math.atan2(dx, dz);
+      }
+    }
+
+    // ---------- 소리 (Web Audio, 녹음 파일 없음) ----------
+    const soundBtn = document.getElementById('soundBtn');
+    let audio = null;        // 처음 버튼을 누를 때 만든다
+    let soundOn = false;
+    let crackleBoostUntil = 0;
+    function makeNoise(ctx, seconds) {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      return buf;
+    }
+    function startAudio() {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const master = ctx.createGain();
+      master.gain.value = 0.6;
+      master.connect(ctx.destination);
+      // 낮은 바람 소리: 소음을 낮은 주파수만 남기고 천천히 흔든다
+      const wind = ctx.createBufferSource();
+      wind.buffer = makeNoise(ctx, 4);
+      wind.loop = true;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 300;
+      const windGain = ctx.createGain();
+      windGain.gain.value = 0.25;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.15;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 0.12;
+      lfo.connect(lfoGain);
+      lfoGain.connect(windGain.gain);
+      wind.connect(lp); lp.connect(windGain); windGain.connect(master);
+      wind.start(); lfo.start();
+      audio = { ctx, master, crackleNoise: makeNoise(ctx, 1) };
+      scheduleCrackle();
+    }
+    function playCrackle(volume) {
+      const { ctx, master, crackleNoise } = audio;
+      const src = ctx.createBufferSource();
+      src.buffer = crackleNoise;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 1500 + Math.random() * 2500;
+      const g = ctx.createGain();
+      const now = ctx.currentTime;
+      g.gain.setValueAtTime(volume, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.04 + Math.random() * 0.05);
+      src.connect(hp); hp.connect(g); g.connect(master);
+      src.start(now, Math.random() * 0.8, 0.12);
+    }
+    function scheduleCrackle() {
+      if (!audio) return;
+      if (soundOn) {
+        const boosted = performance.now() < crackleBoostUntil;
+        playCrackle((boosted ? 0.9 : 0.25) * (0.5 + Math.random() * 0.5));
+        setTimeout(scheduleCrackle, (boosted ? 40 : 150) + Math.random() * (boosted ? 120 : 600));
+      } else {
+        setTimeout(scheduleCrackle, 300);
+      }
+    }
+    soundBtn.addEventListener('click', async () => {
+      if (!audio) startAudio();
+      soundOn = !soundOn;
+      if (soundOn) await audio.ctx.resume();
+      else await audio.ctx.suspend();
+      soundBtn.textContent = soundOn ? '소리 끄기' : '소리 켜기';
+    });
+    soundBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+    // ---------- 장작 넣기 ----------
+    const woodBtn = document.getElementById('woodBtn');
+    const countEl = document.getElementById('count');
+    const todayKey = 'campfire-wood-' + new Date().toISOString().slice(0, 10);
+    let woodCount = 0;
+    try { woodCount = parseInt(localStorage.getItem(todayKey) || '0', 10) || 0; } catch (e) {}
+    function showCount() { countEl.textContent = '넣은 장작 ' + woodCount + '개'; }
+    showCount();
+
+    let bowT = -1;        // 몸 숙이기 시간(0~1.2초), -1이면 쉬는 중
+    let boostT = -1;      // 불꽃 커지기 시간(0~3초), -1이면 쉬는 중
+    function addWood() {
+      woodCount += 1;
+      try { localStorage.setItem(todayKey, String(woodCount)); } catch (e) {}
+      showCount();
+      target = null;
+      me.rotation.y = Math.atan2(-me.position.x, -me.position.z); // 불을 바라본다
+      bowT = 0;
+      boostT = 0;
+      crackleBoostUntil = performance.now() + 2500; // 타닥 소리가 잠깐 커진다
+      if (sendWood) sendWood(1);   // 신호만 보낸다 (내용 없음)
+    }
+    woodBtn.addEventListener('click', addWood);
+    // 버튼을 눌러도 바닥 클릭으로 걷지 않게 한다
+    woodBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+    function updateBow(dt) {
+      let lean = 0;
+      if (bowT >= 0) {
+        bowT += dt;
+        const k = Math.min(bowT / 1.2, 1);
+        lean = Math.sin(k * Math.PI) * 0.9;
+        if (k >= 1) bowT = -1;
+      }
+      me.userData.inner.rotation.x = lean;
+    }
+    function getBoost(dt) {
+      if (boostT < 0) return 1;
+      boostT += dt;
+      if (boostT >= 3) { boostT = -1; return 1; }
+      const k = boostT / 3;
+      return 1 + 1.2 * Math.sin(k * Math.PI);
+    }
+
+    // ---------- 함께 보기 (Trystero 0.22.0, 서버 없음) ----------
+    // 정적 import가 아니라 동적 import: 불러오기에 실패해도 혼자 쓰는 화면은 그대로 동작한다
+    const peopleEl = document.getElementById('people');
+    const APP_ID = 'dongduk-ai-campfire-1120';
+    let sendPos = null, sendWood = null;
+    function showPeople() { peopleEl.textContent = '지금 접속한 사람 ' + (peers.size + 1) + '명'; }
+    function colorFor(id) {
+      let h = 0;
+      for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
+      return new THREE.Color().setHSL(h / 360, 0.6, 0.55);
+    }
+    function addPeer(id) {
+      if (peers.has(id)) return peers.get(id);
+      const doll = makeDoll(colorFor(id));
+      doll.visible = false;   // 첫 위치를 받기 전에는 숨긴다
+      scene.add(doll);
+      const p = { doll, tx: 0, tz: 0, ry: 0, seen: false };
+      peers.set(id, p);
+      showPeople();
+      return p;
+    }
+    function removePeer(id) {
+      const p = peers.get(id);
+      if (!p) return;
+      scene.remove(p.doll);
+      peers.delete(id);
+      showPeople();
+    }
+    async function joinLobby() {
+      try {
+        const { joinRoom, selfId } = await import('https://cdn.jsdelivr.net/npm/trystero@0.22.0/+esm');
+        const room = joinRoom({ appId: APP_ID }, 'lobby');
+        const [sp, getPos] = room.makeAction('pos');
+        const [sw, getWood] = room.makeAction('wood');
+        sendPos = sp; sendWood = sw;
+        room.onPeerJoin((id) => {
+          addPeer(id);
+          sendPos({ x: me.position.x, z: me.position.z, r: me.rotation.y });
+        });
+        room.onPeerLeave((id) => removePeer(id));
+        getPos((d, id) => {
+          const p = addPeer(id);
+          p.tx = d.x; p.tz = d.z; p.ry = d.r;
+          if (!p.seen) {
+            p.seen = true;
+            p.doll.visible = true;
+            p.doll.position.set(d.x, 0, d.z);
+            // 아직 걷지 않았고 겹쳤다면 다른 자리로 옮긴다
+            if (!moved && Math.hypot(d.x - me.position.x, d.z - me.position.z) < 1.5) pickSpawn();
+          }
+        });
+        getWood((d, id) => { boostT = 0; });   // 남이 넣은 장작: 불꽃만 커진다
+        setInterval(() => {
+          sendPos({ x: +me.position.x.toFixed(2), z: +me.position.z.toFixed(2), r: +me.rotation.y.toFixed(2) });
+        }, 200);
+      } catch (e) {
+        console.warn('접속자 표시를 켜지 못했습니다. 혼자 쓰는 화면으로 계속합니다.', e);
+      }
+    }
+    function updatePeers() {
+      for (const p of peers.values()) {
+        if (!p.seen) continue;
+        p.doll.position.x += (p.tx - p.doll.position.x) * 0.2;
+        p.doll.position.z += (p.tz - p.doll.position.z) * 0.2;
+        p.doll.rotation.y = p.ry;
+      }
+    }
+    joinLobby();
+
+    // ---------- 카메라 ----------
+    const camOffset = new THREE.Vector3(0, 4.5, 8);
+    function updateCamera() {
+      // 불 쪽을 바라보도록: 캐릭터에서 불 반대편 뒤쪽에 카메라를 둔다
+      const toFire = new THREE.Vector3(-me.position.x, 0, -me.position.z);
+      if (toFire.length() < 0.01) toFire.set(0, 0, -1);
+      toFire.normalize();
+      const want = new THREE.Vector3(
+        me.position.x - toFire.x * camOffset.z,
+        camOffset.y,
+        me.position.z - toFire.z * camOffset.z
+      );
+      camera.position.lerp(want, 0.08);
+      camera.lookAt(me.position.x, 1.2, me.position.z);
+    }
+
+    // ---------- 반복 ----------
+    const clock = new THREE.Clock();
+    function loop() {
+      const dt = Math.min(clock.getDelta(), 0.1);
+      const t = clock.elapsedTime;
+      updateMe(dt);
+      updateBow(dt);
+      updatePeers();
+      const boost = getBoost(dt);
+      updateCamera();
+      const f = 1 + Math.sin(t * 9) * 0.08 + Math.sin(t * 23) * 0.05;
+      flame.scale.set(f * boost, f * boost * 1.05, f * boost);
+      flameCore.scale.set(f * boost, f * boost, f * boost);
+      fireLight.intensity = 40 * f * boost;
+      stars.rotation.y = t * 0.002;
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+    camera.position.set(0, 4.5, 13);
+    loop();
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+  </script>
+</body>
+</html>
